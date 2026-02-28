@@ -164,12 +164,26 @@
     <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
       <el-input v-model="mappingSearch" placeholder="按字段名搜索..." clearable style="width:220px" />
       <el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button>
+      <span style="color:#909399;font-size:12px;margin-left:auto">共 {{ filteredMappingRows.length }} 条</span>
     </div>
-    <div v-for="(m, i) in filteredMappingRows" :key="i" class="mapping-row">
-      <el-input v-model="m.field" placeholder="字段名" style="width:180px" />
-      <el-input v-model="m.key" placeholder="Key (原始值)" style="width:120px" />
-      <el-input v-model="m.value" placeholder="Value (映射值)" style="width:160px" />
-      <el-button type="danger" plain size="small" @click="deleteMapping(i)">删除</el-button>
+    <div class="table-wrap" style="max-height:420px;overflow-y:auto;margin-bottom:0">
+      <table class="diff-table">
+        <thead><tr>
+          <th style="width:200px">字段名</th>
+          <th style="width:120px">Key（原始值）</th>
+          <th style="width:160px">Value（映射值）</th>
+          <th style="width:80px">操作</th>
+        </tr></thead>
+        <tbody>
+          <tr v-if="filteredMappingRows.length===0"><td colspan="4" style="text-align:center;color:#c0c4cc;padding:20px">暂无映射</td></tr>
+          <tr v-for="(m, i) in filteredMappingRows" :key="i">
+            <td><el-input v-model="m.field" size="small" placeholder="字段名" /></td>
+            <td><el-input v-model="m.key" size="small" placeholder="如 1" /></td>
+            <td><el-input v-model="m.value" size="small" placeholder="如 允许" /></td>
+            <td><el-button link size="small" type="danger" @click="deleteMapping(i)">删除</el-button></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     <template #footer>
       <el-button @click="showMappings=false">关闭</el-button>
