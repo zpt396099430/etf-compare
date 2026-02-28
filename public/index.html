@@ -172,15 +172,15 @@
           <th style="width:200px">字段名</th>
           <th style="width:120px">Key（原始值）</th>
           <th style="width:160px">Value（映射值）</th>
-          <th style="width:100px">操作</th>
+          <th style="width:80px">操作</th>
         </tr></thead>
         <tbody>
           <tr v-if="filteredMappingRows.length===0"><td colspan="4" style="text-align:center;color:#c0c4cc;padding:20px">暂无映射</td></tr>
           <tr v-for="(m, i) in filteredMappingRows" :key="i">
-            <td><el-input v-if="m._editing" v-model="m.field" size="small" placeholder="字段名" /><code v-else style="font-size:12px">{{ m.field }}</code></td>
-            <td><el-input v-if="m._editing" v-model="m.key" size="small" placeholder="如 1" /><span v-else>{{ m.key }}</span></td>
-            <td><el-input v-if="m._editing" v-model="m.value" size="small" placeholder="如 允许" /><span v-else>{{ m.value }}</span></td>
-            <td><a v-if="!m._editing" href="#" style="color:#409eff;font-size:13px;margin-right:8px" @click.prevent="m._editing=true">修改</a><a v-if="m._editing" href="#" style="color:#67c23a;font-size:13px;margin-right:8px" @click.prevent="m._editing=false">确认</a><a href="#" style="color:#f56c6c;font-size:13px" @click.prevent="deleteMapping(i)">删除</a></td>
+            <td><el-input v-model="m.field" size="small" placeholder="字段名" /></td>
+            <td><el-input v-model="m.key" size="small" placeholder="如 1" /></td>
+            <td><el-input v-model="m.value" size="small" placeholder="如 允许" /></td>
+            <td><el-button link size="small" type="danger" @click="deleteMapping(i)">删除</el-button></td>
           </tr>
         </tbody>
       </table>
@@ -284,7 +284,7 @@ const DiffPanel = {
             <tr>
               <th style="width:90px">证券代码</th>
               <th style="width:90px">证券名称</th>
-              <th v-for="f in diff.securityFields" :key="f">{{ diff.fieldLabels[f]||f }} <el-tooltip :content="f" placement="top"><span style="color:#c0c4cc;cursor:help;font-size:11px;font-weight:400">(?)</span></el-tooltip></th>
+              <th v-for="f in diff.securityFields" :key="f">{{ diff.fieldLabels[f]||f }} <el-tooltip :content="f" placement="top"><span style="color:#c0c4cc;cursor:help;font-size:12px">❓</span></el-tooltip></th>
             </tr>
           </thead>
           <tbody>
@@ -416,7 +416,7 @@ createApp({
           try {
             const m = JSON.parse(r.mapping_json);
             Object.keys(m).forEach(k => {
-              flat.push({ field: r.field_name, key: k, value: m[k], _editing: false });
+              flat.push({ field: r.field_name, key: k, value: m[k] });
             });
           } catch(e) {}
         });
@@ -425,7 +425,7 @@ createApp({
     });
 
     function addMappingRow() {
-      mappingRows.value.push({ field: '', key: '', value: '', _editing: true });
+      mappingRows.value.push({ field: '', key: '', value: '' });
     }
 
     function deleteMapping(idx) {
