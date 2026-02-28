@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ETF 申购赎回清单对比</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+    .app-header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 20px 40px;
+      display: flex; align-items: center; gap: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .app-header .logo { font-size: 28px; }
+    .app-header h1 { color: #fff; font-size: 20px; font-weight: 600; }
+    .app-header .sub { color: #a0aec0; font-size: 13px; margin-top: 2px; }
+
+    .main { max-width: 1400px; margin: 0 auto; padding: 32px 24px; }
+
+    .upload-card { margin-bottom: 24px; }
+    .upload-area {
+      border: 2px dashed #d9d9d9; border-radius: 12px;
+      padding: 48px; text-align: center; cursor: pointer;
+      transition: all 0.3s; background: #fafafa;
+    }
+    .upload-area:hover, .upload-area.dragover {
+      border-color: #409eff; background: #ecf5ff;
+    }
+    .upload-icon { font-size: 48px; margin-bottom: 12px; }
+    .upload-text { color: #606266; font-size: 15px; }
+    .upload-hint { color: #909399; font-size: 13px; margin-top: 6px; }
+
+    .status-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px; border-radius: 8px; margin-bottom: 24px;
+      background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .section-title {
+      font-size: 16px; font-weight: 600; color: #1a1a2e;
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 22px; padding: 0 6px;
+      border-radius: 11px; font-size: 12px; font-weight: 600;
+    }
+    .badge-diff { background: #fef0f0; color: #f56c6c; }
+    .badge-ok { background: #f0f9eb; color: #67c23a; }
+
+    .diff-tabs { margin-bottom: 24px; }
+
+    /* Diff table styles */
+    .diff-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .diff-table th {
+      background: #f5f7fa; color: #606266; font-weight: 600;
+      padding: 10px 14px; text-align: left; border-bottom: 2px solid #ebeef5;
+      position: sticky; top: 0; z-index: 1;
+    }
+    .diff-table td { padding: 9px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .diff-table tr:last-child td { border-bottom: none; }
+    .diff-table tr:hover td { background: #fafafa; }
+
+    .row-diff td { background: #fff8f8 !important; }
+    .row-only-a td { background: #fff8f8 !important; }
+    .row-only-b td { background: #f0f9ff !important; }
+
+    .val-diff { font-weight: 600; }
+    .val-a { color: #f56c6c; }
+    .val-b { color: #409eff; }
+    .val-same { color: #606266; }
+    .val-missing { color: #c0c4cc; font-style: italic; }
+
+    .tag-only-a { background: #fef0f0; color: #f56c6c; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .tag-only-b { background: #ecf5ff; color: #409eff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .summary-item {
+      background: #fff; border-radius: 8px; padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06); text-align: center;
+    }
+    .summary-num { font-size: 28px; font-weight: 700; line-height: 1; }
+    .summary-label { font-size: 12px; color: #909399; margin-top: 4px; }
+    .num-red { color: #f56c6c; }
+    .num-blue { color: #409eff; }
+    .num-green { color: #67c23a; }
+    .num-orange { color: #e6a23c; }
+
+    .table-wrap { overflow-x: auto; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); background: #fff; }
+
+    .empty-state { text-align: center; padding: 60px; color: #c0c4cc; }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+    .sessions-list { margin-bottom: 24px; }
+    .session-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; border-radius: 6px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .session-item:hover { background: #f5f7fa; }
+
+    .arrow { color: #c0c4cc; margin: 0 4px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="app-header">
+    <div class="logo">📊</div>
+    <div>
+      <h1>ETF 申购赎回清单对比工具</h1>
+      <div class="sub">上传文件A，自动获取并对比国泰基金网站数据</div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Upload -->
+    <el-card class="upload-card" shadow="never">
+      <div
+        class="upload-area"
+        :class="{ dragover: isDragging }"
+        @click="triggerUpload"
+        @dragover.prevent="isDragging=true"
+        @dragleave="isDragging=false"
+        @drop.prevent="onDrop"
+      >
+        <div class="upload-icon">📂</div>
+        <div class="upload-text">点击或拖拽上传文件A（XML格式）</div>
+        <div class="upload-hint">系统将自动从国泰基金网站获取对应数据并进行对比</div>
+        <input ref="fileInput" type="file" accept=".xml" style="display:none" @change="onFileChange" />
+      </div>
+    </el-card>
+
+    <!-- Status -->
+    <div v-if="status" class="status-bar">
+      <el-icon v-if="status==='processing'" class="is-loading"><Loading /></el-icon>
+      <el-icon v-else-if="status==='done'" style="color:#67c23a"><CircleCheck /></el-icon>
+      <el-icon v-else style="color:#f56c6c"><CircleClose /></el-icon>
+      <span>
+        <template v-if="status==='processing'">正在处理：解析文件A → 获取网站数据 → 生成对比...</template>
+        <template v-else-if="status==='done'">处理完成 · 基金代码 <strong>{{ session.fund_code }}</strong> · 交易日 <strong>{{ session.trading_day }}</strong></template>
+        <template v-else>处理失败：{{ session.error }}</template>
+      </span>
+    </div>
+
+    <!-- Results -->
+    <template v-if="result">
+      <el-tabs v-model="activeTab" class="diff-tabs" type="border-card">
+
+        <!-- A vs B -->
+        <el-tab-pane name="AB">
+          <template #label>
+            <span>文件A <span class="arrow">vs</span> 网站XML（B）
+              <span class="badge" :class="hasDiff(result.AB) ? 'badge-diff' : 'badge-ok'">
+                {{ totalDiffs(result.AB) }}
+              </span>
+            </span>
+          </template>
+          <diff-panel :diff="result.AB" label-a="文件A" label-b="网站XML(B)" />
+        </el-tab-pane>
+
+        <!-- A vs C -->
+        <el-tab-pane name="AC">
+          <template #label>
+            <span>文件A <span class="arrow">vs</span> 网站API（C）
+              <span class="badge" :class="hasDiff(result.AC) ? 'badge-diff' : 'badge-ok'">
+                {{ totalDiffs(result.AC) }}
+              </span>
+            </span>
+          </template>
+          <diff-panel :diff="result.AC" label-a="文件A" label-b="网站API(C)" />
+        </el-tab-pane>
+
+      </el-tabs>
+    </template>
+
+    <!-- Recent sessions -->
+    <el-card v-if="sessions.length" shadow="never" style="margin-top:24px">
+      <template #header><span style="font-weight:600">历史记录</span></template>
+      <div class="sessions-list">
+        <div
+          v-for="s in sessions" :key="s.id"
+          class="session-item"
+          @click="loadSession(s.id)"
+        >
+          <el-tag :type="s.status==='done'?'success':s.status==='error'?'danger':'warning'" size="small">{{ s.status }}</el-tag>
+          <span style="font-weight:600">{{ s.fund_code || '—' }}</span>
+          <span style="color:#909399">{{ s.trading_day || '—' }}</span>
+          <span style="color:#c0c4cc;font-size:12px;margin-left:auto">{{ formatTime(s.created_at) }}</span>
+        </div>
+      </div>
+    </el-card>
+
+  </div>
+</div>
+
+<script>
+const { createApp, ref, onMounted } = Vue;
+const { ElMessage, ElLoading } = ElementPlus;
+
+// ── DiffPanel component ───────────────────────────────────────────────────────
+const DiffPanel = {
+  props: ['diff', 'labelA', 'labelB'],
+  setup(props) {
+    const showOnlyDiffs = ref(false);
+
+    function totalDiffs(d) {
+      return (d.headerDiffs?.length||0) + (d.securityDiffs?.length||0) + (d.onlyInA?.length||0) + (d.onlyInB?.length||0);
+    }
+
+    return { showOnlyDiffs, totalDiffs };
+  },
+  template: `
+    <div>
+      <!-- Summary -->
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-num num-red">{{ diff.headerDiffs?.length || 0 }}</div>
+          <div class="summary-label">基本信息差异</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-num num-orange">{{ diff.securityDiffs?.length || 0 }}</div>
+          <div class="summary-label">成分股字段差异</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-num num-red">{{ diff.onlyInA?.length || 0 }}</div>
+          <div class="summary-label">仅在A中存在</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-num num-blue">{{ diff.onlyInB?.length || 0 }}</div>
+          <div class="summary-label">仅在B中存在</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-num num-green">{{ totalDiffs(diff) === 0 ? '✓' : totalDiffs(diff) }}</div>
+          <div class="summary-label">总差异数</div>
+        </div>
+      </div>
+
+      <template v-if="totalDiffs(diff) === 0">
+        <div class="empty-state">
+          <div class="empty-icon">✅</div>
+          <div>两份数据完全一致，无差异</div>
+        </div>
+      </template>
+
+      <template v-else>
+
+        <!-- Header diffs -->
+        <template v-if="diff.headerDiffs?.length">
+          <div class="section-title">
+            📋 基本信息差异
+            <span class="badge badge-diff">{{ diff.headerDiffs.length }}</span>
+          </div>
+          <div class="table-wrap" style="margin-bottom:24px">
+            <table class="diff-table">
+              <thead>
+                <tr>
+                  <th style="width:220px">字段</th>
+                  <th>{{ labelA }} 值</th>
+                  <th>{{ labelB }} 值</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="d in diff.headerDiffs" :key="d.field" class="row-diff">
+                  <td><code>{{ d.field }}</code></td>
+                  <td><span class="val-diff val-a">{{ d.valueA ?? '—' }}</span></td>
+                  <td><span class="val-diff val-b">{{ d.valueB ?? '—' }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+        <!-- Security diffs -->
+        <template v-if="diff.securityDiffs?.length">
+          <div class="section-title">
+            📈 成分股字段差异
+            <span class="badge badge-diff">{{ diff.securityDiffs.length }}</span>
+          </div>
+          <div class="table-wrap" style="margin-bottom:24px">
+            <table class="diff-table">
+              <thead>
+                <tr>
+                  <th style="width:90px">证券代码</th>
+                  <th style="width:100px">证券名称</th>
+                  <th style="width:160px">字段</th>
+                  <th>{{ labelA }} 值</th>
+                  <th>{{ labelB }} 值</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="s in diff.securityDiffs" :key="s.id">
+                  <tr v-for="(d, i) in s.diffs" :key="d.field" class="row-diff">
+                    <td>{{ i===0 ? s.id : '' }}</td>
+                    <td>{{ i===0 ? s.name : '' }}</td>
+                    <td><code>{{ d.field }}</code></td>
+                    <td><span class="val-diff val-a">{{ d.valueA ?? '—' }}</span></td>
+                    <td><span class="val-diff val-b">{{ d.valueB ?? '—' }}</span></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+        <!-- Only in A -->
+        <template v-if="diff.onlyInA?.length">
+          <div class="section-title">
+            🔴 仅在 {{ labelA }} 中存在的成分股
+            <span class="badge badge-diff">{{ diff.onlyInA.length }}</span>
+          </div>
+          <div class="table-wrap" style="margin-bottom:24px">
+            <table class="diff-table">
+              <thead>
+                <tr>
+                  <th>证券代码</th>
+                  <th>证券名称</th>
+                  <th>数量</th>
+                  <th>替代标志</th>
+                  <th>替代金额</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="s in diff.onlyInA" :key="s.id" class="row-only-a">
+                  <td>{{ s.id }}</td>
+                  <td>{{ s.data.InstrumentName }}</td>
+                  <td>{{ s.data.Quantity }}</td>
+                  <td>{{ s.data.SubstitutionFlag }}</td>
+                  <td>{{ s.data.SubstitutionCashAmount }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+        <!-- Only in B -->
+        <template v-if="diff.onlyInB?.length">
+          <div class="section-title">
+            🔵 仅在 {{ labelB }} 中存在的成分股
+            <span class="badge" style="background:#ecf5ff;color:#409eff">{{ diff.onlyInB.length }}</span>
+          </div>
+          <div class="table-wrap" style="margin-bottom:24px">
+            <table class="diff-table">
+              <thead>
+                <tr>
+                  <th>证券代码</th>
+                  <th>证券名称</th>
+                  <th>数量</th>
+                  <th>替代标志</th>
+                  <th>替代金额</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="s in diff.onlyInB" :key="s.id" class="row-only-b">
+                  <td>{{ s.id }}</td>
+                  <td>{{ s.data.InstrumentName }}</td>
+                  <td>{{ s.data.Quantity }}</td>
+                  <td>{{ s.data.SubstitutionFlag }}</td>
+                  <td>{{ s.data.SubstitutionCashAmount }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+      </template>
+    </div>
+  `
+};
+
+// ── Main app ──────────────────────────────────────────────────────────────────
+createApp({
+  components: { DiffPanel },
+  setup() {
+    const fileInput = ref(null);
+    const isDragging = ref(false);
+    const status = ref(null);
+    const session = ref(null);
+    const result = ref(null);
+    const activeTab = ref('AB');
+    const sessions = ref([]);
+    let pollTimer = null;
+
+    onMounted(loadSessions);
+
+    async function loadSessions() {
+      try {
+        const r = await fetch('/api/sessions');
+        sessions.value = await r.json();
+      } catch {}
+    }
+
+    function triggerUpload() { fileInput.value.click(); }
+
+    function onFileChange(e) {
+      const f = e.target.files[0];
+      if (f) uploadFile(f);
+      e.target.value = '';
+    }
+
+    function onDrop(e) {
+      isDragging.value = false;
+      const f = e.dataTransfer.files[0];
+      if (f) uploadFile(f);
+    }
+
+    async function uploadFile(file) {
+      if (!file.name.endsWith('.xml')) {
+        ElMessage.error('请上传 XML 格式文件');
+        return;
+      }
+      result.value = null;
+      status.value = 'processing';
+      session.value = null;
+
+      const fd = new FormData();
+      fd.append('file', file);
+
+      try {
+        const r = await fetch('/api/upload', { method: 'POST', body: fd });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        pollStatus(data.sessionId);
+      } catch (e) {
+        status.value = 'error';
+        session.value = { error: e.message };
+        ElMessage.error('上传失败：' + e.message);
+      }
+    }
+
+    function pollStatus(id) {
+      clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`/api/status/${id}`);
+          const s = await r.json();
+          session.value = s;
+          status.value = s.status;
+          if (s.status === 'done') {
+            clearInterval(pollTimer);
+            await loadResult(id);
+            await loadSessions();
+          } else if (s.status === 'error') {
+            clearInterval(pollTimer);
+            ElMessage.error('处理失败：' + s.error);
+          }
+        } catch {}
+      }, 1500);
+    }
+
+    async function loadResult(id) {
+      const r = await fetch(`/api/compare/${id}`);
+      const data = await r.json();
+      result.value = data;
+      activeTab.value = 'AB';
+    }
+
+    async function loadSession(id) {
+      const r = await fetch(`/api/status/${id}`);
+      const s = await r.json();
+      session.value = s;
+      status.value = s.status;
+      if (s.status === 'done') await loadResult(id);
+    }
+
+    function hasDiff(d) {
+      return (d.headerDiffs?.length||0) + (d.securityDiffs?.length||0) + (d.onlyInA?.length||0) + (d.onlyInB?.length||0) > 0;
+    }
+
+    function totalDiffs(d) {
+      return (d.headerDiffs?.length||0) + (d.securityDiffs?.length||0) + (d.onlyInA?.length||0) + (d.onlyInB?.length||0);
+    }
+
+    function formatTime(ts) {
+      return new Date(ts * 1000).toLocaleString('zh-CN');
+    }
+
+    return {
+      fileInput, isDragging, status, session, result, activeTab, sessions,
+      triggerUpload, onFileChange, onDrop, hasDiff, totalDiffs, formatTime, loadSession
+    };
+  }
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>
