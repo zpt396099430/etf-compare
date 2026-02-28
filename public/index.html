@@ -183,13 +183,11 @@
         </tbody>
       </table>
     </div>
-    <div style="margin-top:10px">
-      <el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button>
-      <span style="color:#909399;font-size:12px;margin-left:12px">共 {{ filteredMappingRows.length }} 条</span>
-    </div>
     <template #footer>
-      <el-button @click="showMappings=false">关闭</el-button>
-      <el-button type="primary" @click="saveMappings">保存全部</el-button>
+      <div style="display:flex;justify-content:space-between;width:100%">
+        <div><el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button><span style="color:#909399;font-size:12px;margin-left:12px">共 {{ filteredMappingRows.length }} 条</span></div>
+        <div><el-button @click="showMappings=false">关闭</el-button><el-button type="primary" @click="saveMappings">保存全部</el-button></div>
+      </div>
     </template>
   </el-dialog>
 
