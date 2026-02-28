@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ETF 申购赎回清单对比</title>
-  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css" />
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus/dist/index.full.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
@@ -213,6 +213,15 @@
 </div>
 
 <script>
+window.onerror = function(msg, url, line, col, err) {
+  document.body.innerHTML = '<pre style="color:red;padding:20px">JS Error: ' + msg + '\nLine: ' + line + '\nCol: ' + col + '\n' + (err ? err.stack : '') + '</pre>';
+};
+if (typeof Vue === 'undefined') {
+  document.body.innerHTML = '<pre style="color:red;padding:20px">Vue CDN failed to load</pre>';
+}
+if (typeof ElementPlus === 'undefined') {
+  document.body.innerHTML = '<pre style="color:red;padding:20px">ElementPlus CDN failed to load</pre>';
+}
 const { createApp, ref, computed, watch, onMounted } = Vue;
 const { ElMessage } = ElementPlus;
 
