@@ -478,7 +478,6 @@ createApp({
         if (!grouped[r.field]) grouped[r.field] = {};
         grouped[r.field][r.key] = r.value;
       }
-      }
 
       // Get existing fields to detect deletions
       const existing = await fetch('api/mappings').then(r => r.json());
