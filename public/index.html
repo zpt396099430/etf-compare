@@ -186,7 +186,7 @@
     <template #footer>
       <div style="display:flex;justify-content:space-between;width:100%">
         <div><el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button><span style="color:#909399;font-size:12px;margin-left:12px">共 {{ filteredMappingRows.length }} 条</span></div>
-        <div><el-button @click="showMappings=false">关闭</el-button><el-button type="primary" @click="saveMappings">保存全部</el-button></div>
+        <div><el-button @click="showMappings=false">关闭</el-button></div>
       </div>
     </template>
   </el-dialog>
@@ -467,13 +467,14 @@ createApp({
         mappingRows.value[editRowIndex].value = d.value;
       }
       showEditRow.value = false;
+      saveAllMappings();
     }
 
     function deleteMapping(idx) {
       mappingRows.value.splice(idx, 1);
     }
 
-    async function saveMappings() {
+    async function saveAllMappings() {
       const grouped = {};
       mappingRows.value.forEach(r => {
         if (!r.field || !r.key) return;
@@ -493,8 +494,7 @@ createApp({
           body: JSON.stringify({ field_name: field, mapping_json: JSON.stringify(mapping) })
         });
       }
-      ElMessage.success('保存成功');
-      showMappings.value = false;
+      ElMessage.success('已保存');
     }
 
     function fmtTime(ts) { return new Date(ts * 1000).toLocaleString('zh-CN'); }
@@ -504,7 +504,7 @@ createApp({
       showMappings, mappingRows, mappingSearch, filteredMappingRows,
       showEditRow, editRowData, editRowIsNew, editRow, confirmEditRow,
       onFileChange, onDrop, doRefresh, loadSession, totalDiffs,
-      addMappingRow, deleteMapping, saveMappings, fmtTime
+      addMappingRow, deleteMapping, saveAllMappings, fmtTime
     };
   }
 }).use(ElementPlus).mount('#app');
