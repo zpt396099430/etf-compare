@@ -161,9 +161,8 @@
 
   <!-- Mappings Dialog -->
   <el-dialog v-model="showMappings" title="字段映射配置" width="760px" destroy-on-close>
-    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+    <div style="margin-bottom:12px">
       <el-input v-model="mappingSearch" placeholder="按字段名搜索..." clearable style="width:220px" />
-      <el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button>
     </div>
     <div class="table-wrap" style="max-height:380px;overflow-y:auto;margin-bottom:0">
       <table class="diff-table">
@@ -186,7 +185,7 @@
     </div>
     <template #footer>
       <div style="display:flex;justify-content:space-between;width:100%">
-        <span style="color:#909399;font-size:12px">共 {{ filteredMappingRows.length }} 条</span>
+        <div><el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button><span style="color:#909399;font-size:12px;margin-left:12px">共 {{ filteredMappingRows.length }} 条</span></div>
         <el-button @click="showMappings=false">关闭</el-button>
       </div>
     </template>
