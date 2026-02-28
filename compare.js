@@ -58,6 +58,11 @@ function compare(dataA, dataB, mappings = {}) {
     securityRows.push({ id, name: secA.InstrumentName || secB.InstrumentName || id, onlyIn: null, hasDiff, fields });
   }
 
+  // Add merged display values
+  for (const row of securityRows) {
+    row.merged = buildMergedDisplay(row);
+  }
+
   // Sort: only-in first, then diffs, then same
   securityRows.sort((a, b) => {
     if (a.onlyIn && !b.onlyIn) return -1;
@@ -75,6 +80,25 @@ function compare(dataA, dataB, mappings = {}) {
   };
 
   return { headerRows, securityRows, stats, securityFields: SECURITY_DISPLAY_FIELDS, fieldLabels: FIELD_LABELS };
+}
+
+// Build merged display values for each security field
+function buildMergedDisplay(row) {
+  const merged = {};
+  for (const [f, v] of Object.entries(row.fields)) {
+    if (row.onlyIn === 'A') {
+      merged[f] = v.valueA != null ? String(v.valueA) : '—';
+    } else if (row.onlyIn === 'B') {
+      merged[f] = v.valueB != null ? String(v.valueB) : '—';
+    } else if (v.diff) {
+      const a = v.valueA != null ? String(v.valueA) : '—';
+      const b = v.valueB != null ? String(v.valueB) : '—';
+      merged[f] = a + '<span style="color:#f56c6c;font-size:12px">（' + b + '）</span>';
+    } else {
+      merged[f] = v.valueA != null ? String(v.valueA) : '—';
+    }
+  }
+  return merged;
 }
 
 function buildFields(secA, secB, mappings) {

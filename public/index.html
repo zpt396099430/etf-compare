@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ETF 申购赎回清单对比</title>
   <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
-  <script crossorigin="anonymous" src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <script crossorigin="anonymous" src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
@@ -60,9 +60,8 @@
     .diff-table tr:hover td { background: #fafafa !important; }
 
     .cell-diff-a { background: #fff0f0 !important; color: #f56c6c; font-weight: 600; }
-    .cell-diff-b { background: #f0f7ff !important; color: #409eff; font-weight: 600; }
     .cell-diff { background: #fff8ec !important; font-weight: 600; }
-    .diff-other { color: #f56c6c; font-size: 12px; }
+    .cell-diff-b { background: #f0f7ff !important; color: #409eff; font-weight: 600; }
     .row-only-a td { background: #fff5f5 !important; }
     .row-only-b td { background: #f0f7ff !important; }
 
@@ -165,45 +164,12 @@
     <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
       <el-input v-model="mappingSearch" placeholder="按字段名搜索..." clearable style="width:220px" />
       <el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button>
-      <span style="color:#909399;font-size:12px;margin-left:auto">
-        共 {{ filteredMappingRows.length }} 条 / {{ mappingRows.length }} 条
-      </span>
     </div>
-    <div class="table-wrap" style="max-height:420px;overflow-y:auto;margin-bottom:0">
-      <table class="diff-table">
-        <thead>
-          <tr>
-            <th style="width:180px">字段名</th>
-            <th style="width:140px">Key（原始值）</th>
-            <th style="width:180px">Value（映射值）</th>
-            <th style="width:100px">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="filteredMappingRows.length===0">
-            <td colspan="4" style="text-align:center;color:#c0c4cc;padding:20px">暂无映射</td>
-          </tr>
-          <tr v-for="row in filteredMappingRows" :key="row._id">
-            <td>
-              <el-input v-if="row._editing" v-model="row.field" size="small" placeholder="字段名" />
-              <code v-else style="font-size:12px">{{ row.field }}</code>
-            </td>
-            <td>
-              <el-input v-if="row._editing" v-model="row.key" size="small" placeholder="如 1" />
-              <span v-else>{{ row.key }}</span>
-            </td>
-            <td>
-              <el-input v-if="row._editing" v-model="row.value" size="small" placeholder="如 允许" />
-              <span v-else>{{ row.value }}</span>
-            </td>
-            <td>
-              <el-button v-if="!row._editing" link size="small" type="primary" @click="row._editing=true">编辑</el-button>
-              <el-button v-if="row._editing" link size="small" type="success" @click="confirmRow(row)">确认</el-button>
-              <el-button link size="small" type="danger" @click="deleteRow(row)">删除</el-button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-for="(m, i) in filteredMappingRows" :key="i" class="mapping-row">
+      <el-input v-model="m.field" placeholder="字段名" style="width:180px" />
+      <el-input v-model="m.key" placeholder="Key (原始值)" style="width:120px" />
+      <el-input v-model="m.value" placeholder="Value (映射值)" style="width:160px" />
+      <el-button type="danger" plain size="small" @click="deleteMapping(i)">删除</el-button>
     </div>
     <template #footer>
       <el-button @click="showMappings=false">关闭</el-button>
@@ -213,9 +179,6 @@
 </div>
 
 <script>
-try {
-if (typeof Vue === 'undefined') { throw new Error('Vue CDN failed'); }
-if (typeof ElementPlus === 'undefined') { throw new Error('ElementPlus CDN failed'); }
 const { createApp, ref, computed, watch, onMounted } = Vue;
 const { ElMessage } = ElementPlus;
 
@@ -323,13 +286,8 @@ const DiffPanel = {
               </td>
               <td>{{ row.name }}</td>
               <td v-for="f in diff.securityFields" :key="f"
-                  :class="(!row.onlyIn && row.fields[f] && row.fields[f].diff) ? 'cell-diff' : ''">
-                <template v-if="row.onlyIn==='A'">{{ row.fields[f] ? row.fields[f].valueA : '—' }}</template>
-                <template v-else-if="row.onlyIn==='B'">{{ row.fields[f] ? row.fields[f].valueB : '—' }}</template>
-                <template v-else-if="row.fields[f] && row.fields[f].diff">
-                  {{ row.fields[f].valueA != null ? row.fields[f].valueA : '—' }}<span class="diff-other">（{{ row.fields[f].valueB != null ? row.fields[f].valueB : '—' }}）</span>
-                </template>
-                <template v-else>{{ row.fields[f] ? row.fields[f].valueA : '—' }}</template>
+                  :class="!row.onlyIn && row.fields[f] && row.fields[f].diff ? 'cell-diff' : ''"
+                  v-html="row.merged[f] || '—'">
               </td>
             </tr>
           </tbody>
@@ -354,13 +312,12 @@ createApp({
     const showMappings = ref(false);
     const mappingRows = ref([]);
     const mappingSearch = ref('');
-    var mappingIdCounter = 0;
     let pollTimer = null;
 
-    const filteredMappingRows = computed(function() {
-      var q = mappingSearch.value.toLowerCase();
+    const filteredMappingRows = computed(() => {
+      const q = mappingSearch.value.toLowerCase();
       if (!q) return mappingRows.value;
-      return mappingRows.value.filter(function(r) { return r.field.toLowerCase().indexOf(q) !== -1; });
+      return mappingRows.value.filter(r => r.field.toLowerCase().indexOf(q) !== -1);
     });
 
     onMounted(() => { loadSessions(); });
@@ -437,15 +394,15 @@ createApp({
     }
 
     // Mappings
-    watch(showMappings, function(v) {
+    watch(showMappings, (v) => {
       if (!v) return;
-      fetch('api/mappings').then(function(r) { return r.json(); }).then(function(rows) {
-        var flat = [];
-        rows.forEach(function(r) {
+      fetch('api/mappings').then(r => r.json()).then(rows => {
+        const flat = [];
+        rows.forEach(r => {
           try {
-            var m = JSON.parse(r.mapping_json);
-            Object.keys(m).forEach(function(k) {
-              flat.push({ _id: mappingIdCounter++, field: r.field_name, key: k, value: m[k], _editing: false });
+            const m = JSON.parse(r.mapping_json);
+            Object.keys(m).forEach(k => {
+              flat.push({ field: r.field_name, key: k, value: m[k] });
             });
           } catch(e) {}
         });
@@ -454,51 +411,35 @@ createApp({
     });
 
     function addMappingRow() {
-      mappingRows.value.push({ _id: mappingIdCounter++, field: '', key: '', value: '', _editing: true });
+      mappingRows.value.push({ field: '', key: '', value: '' });
     }
 
-    function confirmRow(row) {
-      if (!row.field || !row.key) { ElMessage.warning('字段名和 Key 不能为空'); return; }
-      row._editing = false;
+    function deleteMapping(idx) {
+      mappingRows.value.splice(idx, 1);
     }
 
-    function deleteRow(row) {
-      var idx = mappingRows.value.findIndex(function(r) { return r._id === row._id; });
-      if (idx !== -1) mappingRows.value.splice(idx, 1);
-    }
-
-    function saveMappings() {
-      var editing = mappingRows.value.filter(function(r) { return r._editing; });
-      if (editing.length) { ElMessage.warning('请先确认所有编辑中的行'); return; }
-      var grouped = {};
-      mappingRows.value.forEach(function(r) {
-        if (!r.field) return;
+    async function saveMappings() {
+      const grouped = {};
+      mappingRows.value.forEach(r => {
+        if (!r.field || !r.key) return;
         if (!grouped[r.field]) grouped[r.field] = {};
         grouped[r.field][r.key] = r.value;
       });
-      fetch('api/mappings').then(function(r) { return r.json(); }).then(function(existing) {
-        var existingFields = existing.map(function(r) { return r.field_name; });
-        var newFields = Object.keys(grouped);
-        var promises = [];
-        existingFields.forEach(function(f) {
-          if (newFields.indexOf(f) === -1) {
-            promises.push(fetch('api/mappings/' + f, { method: 'DELETE' }));
-          }
+      const existing = await fetch('api/mappings').then(r => r.json());
+      for (const e of existing) {
+        if (!grouped[e.field_name]) {
+          await fetch('api/mappings/' + e.field_name, { method: 'DELETE' });
+        }
+      }
+      for (const [field, mapping] of Object.entries(grouped)) {
+        await fetch('api/mappings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field_name: field, mapping_json: JSON.stringify(mapping) })
         });
-        newFields.forEach(function(field) {
-          promises.push(fetch('api/mappings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ field_name: field, mapping_json: JSON.stringify(grouped[field]) })
-          }));
-        });
-        return Promise.all(promises);
-      }).then(function() {
-        ElMessage.success('保存成功');
-        showMappings.value = false;
-      }).catch(function() {
-        ElMessage.error('保存失败');
-      });
+      }
+      ElMessage.success('保存成功');
+      showMappings.value = false;
     }
 
     function fmtTime(ts) { return new Date(ts * 1000).toLocaleString('zh-CN'); }
@@ -507,11 +448,10 @@ createApp({
       fileInput, isDragging, status, session, result, activeTab, sessions,
       showMappings, mappingRows, mappingSearch, filteredMappingRows,
       onFileChange, onDrop, doRefresh, loadSession, totalDiffs,
-      addMappingRow, confirmRow, deleteRow, saveMappings, fmtTime
+      addMappingRow, deleteMapping, saveMappings, fmtTime
     };
   }
 }).use(ElementPlus).mount('#app');
-} catch(e) { document.body.innerHTML = '<pre style="color:red;padding:20px;white-space:pre-wrap">ERROR: ' + e.message + '\n\n' + e.stack + '</pre>'; }
 </script>
 </body>
 </html>
