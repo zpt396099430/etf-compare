@@ -394,7 +394,7 @@ createApp({
 
     async function loadSessions() {
       try {
-        const r = await fetch('/api/sessions');
+        const r = await fetch('api/sessions');
         sessions.value = await r.json();
       } catch {}
     }
@@ -426,7 +426,7 @@ createApp({
       fd.append('file', file);
 
       try {
-        const r = await fetch('/api/upload', { method: 'POST', body: fd });
+        const r = await fetch('api/upload', { method: 'POST', body: fd });
         const data = await r.json();
         if (data.error) throw new Error(data.error);
         pollStatus(data.sessionId);
@@ -441,7 +441,7 @@ createApp({
       clearInterval(pollTimer);
       pollTimer = setInterval(async () => {
         try {
-          const r = await fetch(`/api/status/${id}`);
+          const r = await fetch(`api/status/${id}`);
           const s = await r.json();
           session.value = s;
           status.value = s.status;
@@ -458,14 +458,14 @@ createApp({
     }
 
     async function loadResult(id) {
-      const r = await fetch(`/api/compare/${id}`);
+      const r = await fetch(`api/compare/${id}`);
       const data = await r.json();
       result.value = data;
       activeTab.value = 'AB';
     }
 
     async function loadSession(id) {
-      const r = await fetch(`/api/status/${id}`);
+      const r = await fetch(`api/status/${id}`);
       const s = await r.json();
       session.value = s;
       status.value = s.status;
