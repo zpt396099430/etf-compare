@@ -101,9 +101,9 @@
       <div class="upload-area" :class="{dragover:isDragging}" @click="$refs.fileInput.click()"
            @dragover.prevent="isDragging=true" @dragleave="isDragging=false" @drop.prevent="onDrop">
         <div class="upload-icon">📂</div>
-        <div class="upload-text">点击或拖拽上传<strong>原始文件</strong>（XML格式）</div>
+        <div class="upload-text">点击或拖拽上传<strong>原始文件</strong>（XML格式，支持多选）</div>
         <div class="upload-hint">系统将自动从国泰基金网站获取下载文件与阿飞文件进行对比</div>
-        <input ref="fileInput" type="file" accept=".xml" style="display:none" @change="onFileChange" />
+        <input ref="fileInput" type="file" accept=".xml" multiple style="display:none" @change="onFileChange" />
       </div>
     </el-card>
 
@@ -362,30 +362,38 @@ createApp({
     }
 
     function onFileChange(e) {
-      const f = e.target.files[0];
-      if (f) uploadFile(f);
+      const files = Array.from(e.target.files);
+      if (files.length) uploadFiles(files);
       e.target.value = '';
     }
 
     function onDrop(e) {
       isDragging.value = false;
-      const f = e.dataTransfer.files[0];
-      if (f) uploadFile(f);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length) uploadFiles(files);
     }
 
-    async function uploadFile(file) {
-      if (!file.name.endsWith('.xml')) { ElMessage.error('请上传 XML 格式文件'); return; }
+    async function uploadFiles(files) {
+      const xmlFiles = files.filter(f => f.name.endsWith('.xml'));
+      if (!xmlFiles.length) { ElMessage.error('请上传 XML 格式文件'); return; }
       result.value = null; status.value = 'processing'; session.value = null;
-      const fd = new FormData();
-      fd.append('file', file);
-      try {
-        const data = await fetch('api/upload', { method: 'POST', body: fd }).then(r=>r.json());
-        if (data.error) throw new Error(data.error);
-        pollStatus(data.sessionId);
-      } catch (e) {
-        status.value = 'error'; session.value = { error: e.message };
-        ElMessage.error('上传失败：' + e.message);
+      let lastSessionId = null;
+      let errCount = 0;
+      for (const file of xmlFiles) {
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+          const data = await fetch('api/upload', { method: 'POST', body: fd }).then(r=>r.json());
+          if (data.error) throw new Error(data.error);
+          lastSessionId = data.sessionId;
+        } catch (e) {
+          errCount++;
+          ElMessage.error(file.name + ' 上传失败：' + e.message);
+        }
       }
+      if (xmlFiles.length > 1) ElMessage.success('已上传 ' + (xmlFiles.length - errCount) + ' 个文件');
+      if (lastSessionId) pollStatus(lastSessionId);
+      loadSessions();
     }
 
     async function doRefresh() {
