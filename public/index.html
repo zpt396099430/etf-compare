@@ -10,6 +10,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
     .app-header {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
       padding: 20px 40px; display: flex; align-items: center; gap: 16px;
@@ -17,7 +18,9 @@
     }
     .app-header h1 { color: #fff; font-size: 20px; font-weight: 600; }
     .app-header .sub { color: #a0aec0; font-size: 13px; margin-top: 2px; }
+
     .main { max-width: 1600px; margin: 0 auto; padding: 28px 24px; }
+
     .upload-area {
       border: 2px dashed #d9d9d9; border-radius: 12px; padding: 40px;
       text-align: center; cursor: pointer; transition: all 0.3s; background: #fafafa;
@@ -26,21 +29,25 @@
     .upload-icon { font-size: 44px; margin-bottom: 10px; }
     .upload-text { color: #606266; font-size: 15px; }
     .upload-hint { color: #909399; font-size: 13px; margin-top: 6px; }
+
     .status-bar {
       display: flex; align-items: center; gap: 12px;
       padding: 14px 20px; border-radius: 8px; margin-bottom: 20px;
       background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
+
     .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
     .summary-item { background: #fff; border-radius: 8px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); text-align: center; }
     .summary-num { font-size: 26px; font-weight: 700; line-height: 1; }
     .summary-label { font-size: 12px; color: #909399; margin-top: 4px; }
     .num-red { color: #f56c6c; } .num-blue { color: #409eff; }
     .num-green { color: #67c23a; } .num-orange { color: #e6a23c; }
+
     .section-title { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
     .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; font-size: 11px; font-weight: 600; }
     .badge-diff { background: #fef0f0; color: #f56c6c; }
     .badge-ok { background: #f0f9eb; color: #67c23a; }
+
     .table-wrap { overflow-x: auto; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); background: #fff; margin-bottom: 24px; }
     .diff-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .diff-table th {
@@ -51,20 +58,26 @@
     .diff-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; white-space: nowrap; }
     .diff-table tr:last-child td { border-bottom: none; }
     .diff-table tr:hover td { background: #fafafa !important; }
+
     .cell-diff-a { background: #fff0f0 !important; color: #f56c6c; font-weight: 600; }
     .cell-diff-b { background: #f0f7ff !important; color: #409eff; font-weight: 600; }
-    .cell-diff { background: #fff8ec !important; font-weight: 600; }
-    .diff-other { color: #f56c6c; font-size: 12px; }
     .row-only-a td { background: #fff5f5 !important; }
     .row-only-b td { background: #f0f7ff !important; }
+
     .tag-only { padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 4px; }
     .tag-only-a { background: #fef0f0; color: #f56c6c; }
     .tag-only-b { background: #ecf5ff; color: #409eff; }
+
     .empty-state { text-align: center; padding: 50px; color: #c0c4cc; }
-    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+
     .session-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
     .session-item:hover { background: #f5f7fa; }
     .arrow { color: #c0c4cc; margin: 0 3px; }
+
+    /* Mappings dialog */
+    .mapping-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .mapping-row .el-input { flex: 1; }
   </style>
 </head>
 <body>
@@ -75,19 +88,17 @@
       <h1>ETF 申购赎回清单对比工具</h1>
       <div class="sub">上传原始文件，自动获取下载文件与阿飞文件进行三方对比</div>
     </div>
-    <div style="margin-left:auto">
+    <div style="margin-left:auto;display:flex;gap:8px">
       <el-button size="small" @click="showMappings=true">⚙️ 字段映射配置</el-button>
     </div>
   </div>
 
   <div class="main">
+
     <!-- Upload -->
     <el-card shadow="never" style="margin-bottom:20px">
-      <div class="upload-area" :class="{dragover:isDragging}"
-           @click="$refs.fileInput.click()"
-           @dragover.prevent="isDragging=true"
-           @dragleave="isDragging=false"
-           @drop.prevent="onDrop">
+      <div class="upload-area" :class="{dragover:isDragging}" @click="$refs.fileInput.click()"
+           @dragover.prevent="isDragging=true" @dragleave="isDragging=false" @drop.prevent="onDrop">
         <div class="upload-icon">📂</div>
         <div class="upload-text">点击或拖拽上传<strong>原始文件</strong>（XML格式）</div>
         <div class="upload-hint">系统将自动从国泰基金网站获取下载文件与阿飞文件进行对比</div>
@@ -95,7 +106,7 @@
       </div>
     </el-card>
 
-    <!-- Status -->
+    <!-- Status bar -->
     <div v-if="status" class="status-bar">
       <el-icon v-if="status==='processing'" class="is-loading"><Loading /></el-icon>
       <el-icon v-else-if="status==='done'" style="color:#67c23a"><CircleCheck /></el-icon>
@@ -107,8 +118,8 @@
         </template>
         <template v-else>处理失败：{{ session.error }}</template>
       </span>
-      <el-button v-if="status==='done'" size="small" type="primary" plain
-                 style="margin-left:auto" @click="doRefresh">🔄 重新获取对比</el-button>
+      <el-button v-if="status==='done'" size="small" type="primary" plain style="margin-left:auto"
+                 :loading="status==='processing'" @click="doRefresh">🔄 重新获取对比</el-button>
     </div>
 
     <!-- Results -->
@@ -116,20 +127,18 @@
       <el-tabs v-model="activeTab" type="border-card">
         <el-tab-pane name="AB">
           <template #label>
-            <span>原始文件 <span class="arrow">vs</span> 下载文件
-              <span class="badge" :class="totalDiffs(result.AB.stats)>0?'badge-diff':'badge-ok'">
-                {{ totalDiffs(result.AB.stats) }}
-              </span>
+            原始文件 <span class="arrow">vs</span> 下载文件
+            <span class="badge ml-1" :class="totalDiffs(result.AB.stats)>0?'badge-diff':'badge-ok'">
+              {{ totalDiffs(result.AB.stats) }}
             </span>
           </template>
           <diff-panel :diff="result.AB" label-a="原始文件" label-b="下载文件" />
         </el-tab-pane>
         <el-tab-pane name="AC">
           <template #label>
-            <span>原始文件 <span class="arrow">vs</span> 阿飞文件
-              <span class="badge" :class="totalDiffs(result.AC.stats)>0?'badge-diff':'badge-ok'">
-                {{ totalDiffs(result.AC.stats) }}
-              </span>
+            原始文件 <span class="arrow">vs</span> 阿飞文件
+            <span class="badge ml-1" :class="totalDiffs(result.AC.stats)>0?'badge-diff':'badge-ok'">
+              {{ totalDiffs(result.AC.stats) }}
             </span>
           </template>
           <diff-panel :diff="result.AC" label-a="原始文件" label-b="阿飞文件" />
@@ -150,353 +159,282 @@
   </div>
 
   <!-- Mappings Dialog -->
-  <el-dialog v-model="showMappings" title="字段映射配置" width="760px" destroy-on-close>
-    <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
-      <el-input v-model="mappingSearch" placeholder="🔍 按字段名搜索..." clearable style="width:220px" />
-      <el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button>
-      <span style="color:#909399;font-size:12px;margin-left:auto">
-        共 {{ filteredMappingRows.length }} 条 / {{ mappingRows.length }} 条
-      </span>
+  <el-dialog v-model="showMappings" title="字段映射配置" width="700px" destroy-on-close>
+    <div style="margin-bottom:12px;color:#606266;font-size:13px">
+      映射关系用于将原始文件的数字编码转换为中文，以便与阿飞文件进行正确对比。<br>
+      格式：JSON 对象，例如 <code>{"1":"允许","0":"不允许"}</code>
     </div>
-    <div class="table-wrap" style="max-height:420px;overflow-y:auto;margin-bottom:0">
-      <table class="diff-table">
-        <thead>
-          <tr>
-            <th style="width:180px">字段名</th>
-            <th style="width:140px">Key（原始值）</th>
-            <th style="width:180px">Value（映射值）</th>
-            <th style="width:100px">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="filteredMappingRows.length===0">
-            <td colspan="4" style="text-align:center;color:#c0c4cc;padding:20px">暂无映射</td>
-          </tr>
-          <tr v-for="row in filteredMappingRows" :key="row._id">
-            <td>
-              <el-input v-if="row._editing" v-model="row.field" size="small" placeholder="字段名" />
-              <code v-else style="font-size:12px">{{ row.field }}</code>
-            </td>
-            <td>
-              <el-input v-if="row._editing" v-model="row.key" size="small" placeholder="如 1" />
-              <span v-else>{{ row.key }}</span>
-            </td>
-            <td>
-              <el-input v-if="row._editing" v-model="row.value" size="small" placeholder="如 允许" />
-              <span v-else>{{ row.value }}</span>
-            </td>
-            <td>
-              <el-button v-if="!row._editing" link size="small" type="primary" @click="row._editing=true">编辑</el-button>
-              <el-button v-if="row._editing" link size="small" type="success" @click="confirmRow(row)">确认</el-button>
-              <el-button link size="small" type="danger" @click="deleteRow(row)">删除</el-button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-for="(m, i) in mappingList" :key="i" class="mapping-row">
+      <el-input v-model="m.field_name" placeholder="字段名 (如 SubstitutionFlag)" style="width:200px" />
+      <el-input v-model="m.mapping_json" placeholder='{"1":"允许","0":"不允许"}' />
+      <el-button type="danger" plain size="small" @click="deleteMapping(m.field_name, i)">删除</el-button>
     </div>
+    <el-button size="small" @click="addMappingRow" style="margin-top:8px">+ 新增</el-button>
     <template #footer>
-      <el-button @click="showMappings=false">关闭</el-button>
-      <el-button type="primary" @click="saveMappings">保存全部</el-button>
+      <el-button @click="showMappings=false">取消</el-button>
+      <el-button type="primary" @click="saveMappings">保存</el-button>
     </template>
   </el-dialog>
 </div>
 
 <script>
-const { createApp, ref, computed, watch, onMounted } = Vue;
+const { createApp, ref, onMounted } = Vue;
 const { ElMessage } = ElementPlus;
 
-// ── DiffPanel component ───────────────────────────────────────────────────────
+// ── DiffPanel ─────────────────────────────────────────────────────────────────
 const DiffPanel = {
   props: ['diff', 'labelA', 'labelB'],
   setup(props) {
     const showAll = ref(false);
 
     function totalDiffs(s) {
-      return (s.headerDiffs||0) + (s.securityDiffs||0) + (s.onlyInA||0) + (s.onlyInB||0);
+      return (s.headerDiffs||0)+(s.securityDiffs||0)+(s.onlyInA||0)+(s.onlyInB||0);
     }
 
-    function headerRows() {
-      return showAll.value ? props.diff.headerRows : props.diff.headerRows.filter(function(r) { return r.diff; });
-    }
+    const filteredHeaderRows = () => showAll.value
+      ? props.diff.headerRows
+      : props.diff.headerRows.filter(r => r.diff);
 
-    function securityRows() {
-      return showAll.value ? props.diff.securityRows : props.diff.securityRows.filter(function(r) { return r.hasDiff || r.onlyIn; });
-    }
+    const filteredSecurityRows = () => showAll.value
+      ? props.diff.securityRows
+      : props.diff.securityRows.filter(r => r.hasDiff || r.onlyIn);
 
-    return { showAll, totalDiffs, headerRows, securityRows };
+    return { showAll, totalDiffs, filteredHeaderRows, filteredSecurityRows };
   },
   template: `
-    <div>
-      <div class="summary-grid">
-        <div class="summary-item"><div class="summary-num num-red">{{ diff.stats.headerDiffs }}</div><div class="summary-label">基本信息差异</div></div>
-        <div class="summary-item"><div class="summary-num num-orange">{{ diff.stats.securityDiffs }}</div><div class="summary-label">成分股字段差异</div></div>
-        <div class="summary-item"><div class="summary-num num-red">{{ diff.stats.onlyInA }}</div><div class="summary-label">仅在原始文件</div></div>
-        <div class="summary-item"><div class="summary-num num-blue">{{ diff.stats.onlyInB }}</div><div class="summary-label">仅在{{ labelB }}</div></div>
-        <div class="summary-item">
-          <div class="summary-num" :class="totalDiffs(diff.stats)===0?'num-green':'num-orange'">
-            {{ totalDiffs(diff.stats)===0 ? '✓' : totalDiffs(diff.stats) }}
-          </div>
-          <div class="summary-label">总差异数</div>
+  <div>
+    <!-- Summary -->
+    <div class="summary-grid">
+      <div class="summary-item"><div class="summary-num num-red">{{ diff.stats.headerDiffs }}</div><div class="summary-label">基本信息差异</div></div>
+      <div class="summary-item"><div class="summary-num num-orange">{{ diff.stats.securityDiffs }}</div><div class="summary-label">成分股字段差异</div></div>
+      <div class="summary-item"><div class="summary-num num-red">{{ diff.stats.onlyInA }}</div><div class="summary-label">仅在原始文件</div></div>
+      <div class="summary-item"><div class="summary-num num-blue">{{ diff.stats.onlyInB }}</div><div class="summary-label">仅在{{ labelB }}</div></div>
+      <div class="summary-item">
+        <div class="summary-num" :class="totalDiffs(diff.stats)===0?'num-green':'num-orange'">
+          {{ totalDiffs(diff.stats)===0?'✓':totalDiffs(diff.stats) }}
         </div>
+        <div class="summary-label">总差异数</div>
+      </div>
+    </div>
+
+    <template v-if="totalDiffs(diff.stats)===0 && !showAll">
+      <div class="empty-state">✅ 两份数据完全一致，无差异</div>
+    </template>
+
+    <template v-else>
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <el-switch v-model="showAll" active-text="显示全部" inactive-text="仅差异" />
       </div>
 
-      <template v-if="totalDiffs(diff.stats)===0 && !showAll">
-        <div class="empty-state">✅ 两份数据完全一致，无差异</div>
-      </template>
-      <template v-else>
-        <div class="toolbar">
-          <el-switch v-model="showAll" active-text="显示全部" inactive-text="仅差异" />
-        </div>
+      <!-- Header comparison -->
+      <div class="section-title">
+        📋 基本信息对比
+        <span class="badge" :class="diff.stats.headerDiffs>0?'badge-diff':'badge-ok'">{{ diff.stats.headerDiffs }}</span>
+      </div>
+      <div class="table-wrap">
+        <table class="diff-table">
+          <thead>
+            <tr>
+              <th style="width:160px">字段</th>
+              <th style="width:180px">中文名称</th>
+              <th>{{ labelA }} 值</th>
+              <th>{{ labelB }} 值</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="filteredHeaderRows().length===0">
+              <td colspan="4" style="text-align:center;color:#c0c4cc;padding:20px">无差异</td>
+            </tr>
+            <tr v-for="r in filteredHeaderRows()" :key="r.field">
+              <td><code style="font-size:12px">{{ r.field }}</code></td>
+              <td style="color:#606266">{{ r.labelCN }}</td>
+              <td :class="r.diff?'cell-diff-a':''">{{ r.valueA ?? '—' }}</td>
+              <td :class="r.diff?'cell-diff-b':''">{{ r.valueB ?? '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-        <div class="section-title">
-          📋 基本信息对比
-          <span class="badge" :class="diff.stats.headerDiffs>0?'badge-diff':'badge-ok'">{{ diff.stats.headerDiffs }}</span>
-        </div>
-        <div class="table-wrap">
-          <table class="diff-table">
-            <thead>
-              <tr>
-                <th style="width:160px">字段</th>
-                <th style="width:180px">中文名称</th>
-                <th>{{ labelA }} 值</th>
-                <th>{{ labelB }} 值</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="headerRows().length===0">
-                <td colspan="4" style="text-align:center;color:#c0c4cc;padding:20px">无差异</td>
-              </tr>
-              <tr v-for="r in headerRows()" :key="r.field">
-                <td><code style="font-size:12px">{{ r.field }}</code></td>
-                <td style="color:#606266">{{ r.labelCN }}</td>
-                <td :class="r.diff?'cell-diff-a':''">{{ r.valueA != null ? r.valueA : '—' }}</td>
-                <td :class="r.diff?'cell-diff-b':''">{{ r.valueB != null ? r.valueB : '—' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="section-title">
-          📈 成分股对比
-          <span class="badge" :class="(diff.stats.securityDiffs+diff.stats.onlyInA+diff.stats.onlyInB)>0?'badge-diff':'badge-ok'">
-            {{ diff.stats.securityDiffs + diff.stats.onlyInA + diff.stats.onlyInB }}
-          </span>
-        </div>
-        <div class="table-wrap">
-          <table class="diff-table">
-            <thead>
-              <tr>
-                <th style="width:90px">证券代码</th>
-                <th style="width:90px">证券名称</th>
-                <th v-for="f in diff.securityFields" :key="f">{{ diff.fieldLabels[f] || f }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="securityRows().length===0">
-                <td :colspan="2+diff.securityFields.length" style="text-align:center;color:#c0c4cc;padding:20px">无差异</td>
-              </tr>
-              <tr v-for="row in securityRows()" :key="row.id"
-                  :class="row.onlyIn==='A'?'row-only-a':row.onlyIn==='B'?'row-only-b':''">
-                <td>
-                  {{ row.id }}
-                  <span v-if="row.onlyIn==='A'" class="tag-only tag-only-a">仅原始</span>
-                  <span v-if="row.onlyIn==='B'" class="tag-only tag-only-b">仅{{ labelB }}</span>
+      <!-- Securities comparison -->
+      <div class="section-title">
+        📈 成分股对比
+        <span class="badge" :class="(diff.stats.securityDiffs+diff.stats.onlyInA+diff.stats.onlyInB)>0?'badge-diff':'badge-ok'">
+          {{ diff.stats.securityDiffs + diff.stats.onlyInA + diff.stats.onlyInB }}
+        </span>
+      </div>
+      <div class="table-wrap">
+        <table class="diff-table">
+          <thead>
+            <tr>
+              <th style="width:90px">证券代码</th>
+              <th style="width:90px">证券名称</th>
+              <template v-for="f in diff.securityFields" :key="f">
+                <th>{{ diff.fieldLabels[f]||f }}（{{ labelA }}）</th>
+                <th>{{ diff.fieldLabels[f]||f }}（{{ labelB }}）</th>
+              </template>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="filteredSecurityRows().length===0">
+              <td :colspan="2+diff.securityFields.length*2" style="text-align:center;color:#c0c4cc;padding:20px">无差异</td>
+            </tr>
+            <tr v-for="row in filteredSecurityRows()" :key="row.id"
+                :class="row.onlyIn==='A'?'row-only-a':row.onlyIn==='B'?'row-only-b':''">
+              <td>
+                {{ row.id }}
+                <span v-if="row.onlyIn==='A'" class="tag-only tag-only-a">仅原始</span>
+                <span v-if="row.onlyIn==='B'" class="tag-only tag-only-b">仅{{ labelB }}</span>
+              </td>
+              <td>{{ row.name }}</td>
+              <template v-for="f in diff.securityFields" :key="f">
+                <td :class="!row.onlyIn && row.fields[f]?.diff ? 'cell-diff-a' : ''">
+                  {{ row.onlyIn==='B' ? '—' : (row.fields[f]?.valueA ?? '—') }}
                 </td>
-                <td>{{ row.name }}</td>
-                <td v-for="f in diff.securityFields" :key="f"
-                    :class="(!row.onlyIn && row.fields[f] && row.fields[f].diff) ? 'cell-diff' : ''">
-                  <template v-if="row.onlyIn==='A'">{{ row.fields[f] ? row.fields[f].valueA : '—' }}</template>
-                  <template v-else-if="row.onlyIn==='B'">{{ row.fields[f] ? row.fields[f].valueB : '—' }}</template>
-                  <template v-else-if="row.fields[f] && row.fields[f].diff">
-                    {{ row.fields[f].valueA != null ? row.fields[f].valueA : '—' }}<span class="diff-other">（{{ row.fields[f].valueB != null ? row.fields[f].valueB : '—' }}）</span>
-                  </template>
-                  <template v-else>{{ row.fields[f] ? row.fields[f].valueA : '—' }}</template>
+                <td :class="!row.onlyIn && row.fields[f]?.diff ? 'cell-diff-b' : ''">
+                  {{ row.onlyIn==='A' ? '—' : (row.fields[f]?.valueB ?? '—') }}
                 </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
-    </div>
+              </template>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+  </div>
   `
 };
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 createApp({
-  components: { DiffPanel: DiffPanel },
-  setup: function() {
-    var fileInput = ref(null);
-    var isDragging = ref(false);
-    var status = ref(null);
-    var session = ref(null);
-    var result = ref(null);
-    var activeTab = ref('AB');
-    var sessions = ref([]);
-    var showMappings = ref(false);
-    var mappingRows = ref([]);
-    var mappingSearch = ref('');
-    var rowIdCounter = 0;
-    var pollTimer = null;
+  components: { DiffPanel },
+  setup() {
+    const fileInput = ref(null);
+    const isDragging = ref(false);
+    const status = ref(null);
+    const session = ref(null);
+    const result = ref(null);
+    const activeTab = ref('AB');
+    const sessions = ref([]);
+    const showMappings = ref(false);
+    const mappingList = ref([]);
+    let pollTimer = null;
 
-    var filteredMappingRows = computed(function() {
-      var q = mappingSearch.value.toLowerCase();
-      if (!q) return mappingRows.value;
-      return mappingRows.value.filter(function(r) { return r.field.toLowerCase().indexOf(q) !== -1; });
-    });
-
-    onMounted(function() { loadSessions(); });
+    onMounted(() => { loadSessions(); });
 
     function totalDiffs(s) {
-      return (s.headerDiffs||0) + (s.securityDiffs||0) + (s.onlyInA||0) + (s.onlyInB||0);
+      return (s.headerDiffs||0)+(s.securityDiffs||0)+(s.onlyInA||0)+(s.onlyInB||0);
     }
 
-    function loadSessions() {
-      fetch('api/sessions').then(function(r) { return r.json(); }).then(function(data) { sessions.value = data; }).catch(function() {});
+    async function loadSessions() {
+      try { sessions.value = await fetch('api/sessions').then(r=>r.json()); } catch {}
     }
 
     function onFileChange(e) {
-      var f = e.target.files[0];
+      const f = e.target.files[0];
       if (f) uploadFile(f);
       e.target.value = '';
     }
 
     function onDrop(e) {
       isDragging.value = false;
-      var f = e.dataTransfer.files[0];
+      const f = e.dataTransfer.files[0];
       if (f) uploadFile(f);
     }
 
-    function uploadFile(file) {
+    async function uploadFile(file) {
       if (!file.name.endsWith('.xml')) { ElMessage.error('请上传 XML 格式文件'); return; }
       result.value = null; status.value = 'processing'; session.value = null;
-      var fd = new FormData();
+      const fd = new FormData();
       fd.append('file', file);
-      fetch('api/upload', { method: 'POST', body: fd })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.error) throw new Error(data.error);
-          pollStatus(data.sessionId);
-        })
-        .catch(function(e) {
-          status.value = 'error'; session.value = { error: e.message };
-          ElMessage.error('上传失败：' + e.message);
-        });
+      try {
+        const data = await fetch('api/upload', { method: 'POST', body: fd }).then(r=>r.json());
+        if (data.error) throw new Error(data.error);
+        pollStatus(data.sessionId);
+      } catch (e) {
+        status.value = 'error'; session.value = { error: e.message };
+        ElMessage.error('上传失败：' + e.message);
+      }
     }
 
-    function doRefresh() {
+    async function doRefresh() {
       if (!session.value) return;
       status.value = 'processing'; result.value = null;
-      fetch('api/refresh/' + session.value.id, { method: 'POST' }).then(function() {
-        pollStatus(session.value.id);
-      });
+      await fetch(`api/refresh/${session.value.id}`, { method: 'POST' });
+      pollStatus(session.value.id);
     }
 
     function pollStatus(id) {
       clearInterval(pollTimer);
-      pollTimer = setInterval(function() {
-        fetch('api/status/' + id).then(function(r) { return r.json(); }).then(function(s) {
+      pollTimer = setInterval(async () => {
+        try {
+          const s = await fetch(`api/status/${id}`).then(r=>r.json());
           session.value = s; status.value = s.status;
           if (s.status === 'done') {
             clearInterval(pollTimer);
-            loadResult(id);
-            loadSessions();
+            await loadResult(id);
+            await loadSessions();
           } else if (s.status === 'error') {
             clearInterval(pollTimer);
             ElMessage.error('处理失败：' + s.error);
           }
-        }).catch(function() {});
+        } catch {}
       }, 1500);
     }
 
-    function loadResult(id) {
-      fetch('api/compare/' + id).then(function(r) { return r.json(); }).then(function(data) {
-        result.value = data;
-        activeTab.value = 'AB';
-      });
+    async function loadResult(id) {
+      const data = await fetch(`api/compare/${id}`).then(r=>r.json());
+      result.value = data;
     }
 
-    function loadSession(id) {
-      fetch('api/status/' + id).then(function(r) { return r.json(); }).then(function(s) {
-        session.value = s; status.value = s.status;
-        if (s.status === 'done') loadResult(id);
-      });
+    async function loadSession(id) {
+      const s = await fetch(`api/status/${id}`).then(r=>r.json());
+      session.value = s; status.value = s.status;
+      if (s.status === 'done') await loadResult(id);
     }
+
+    // Mappings
+    async function openMappings() {
+      const rows = await fetch('api/mappings').then(r=>r.json());
+      mappingList.value = rows.map(r => ({ field_name: r.field_name, mapping_json: r.mapping_json }));
+      showMappings.value = true;
+    }
+
+    function addMappingRow() {
+      mappingList.value.push({ field_name: '', mapping_json: '{}' });
+    }
+
+    async function deleteMapping(fieldName, idx) {
+      if (fieldName) await fetch(`api/mappings/${fieldName}`, { method: 'DELETE' });
+      mappingList.value.splice(idx, 1);
+    }
+
+    async function saveMappings() {
+      for (const m of mappingList.value) {
+        if (!m.field_name) continue;
+        try {
+          JSON.parse(m.mapping_json);
+          await fetch('api/mappings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field_name: m.field_name, mapping_json: m.mapping_json })
+          });
+        } catch { ElMessage.error(`${m.field_name} 的映射 JSON 格式有误`); return; }
+      }
+      ElMessage.success('保存成功');
+      showMappings.value = false;
+    }
+
+    // Watch showMappings to load data
+    const { watch } = Vue;
+    watch(showMappings, async (v) => { if (v) await openMappings(); });
 
     function fmtTime(ts) { return new Date(ts * 1000).toLocaleString('zh-CN'); }
 
-    // ── Mappings ──────────────────────────────────────────────────────────────
-    watch(showMappings, function(v) {
-      if (v) {
-        fetch('api/mappings').then(function(r) { return r.json(); }).then(function(rows) {
-          var flat = [];
-          rows.forEach(function(r) {
-            try {
-              var m = JSON.parse(r.mapping_json);
-              Object.keys(m).forEach(function(k) {
-                flat.push({ _id: rowIdCounter++, field: r.field_name, key: k, value: m[k], _editing: false });
-              });
-            } catch(e) {}
-          });
-          mappingRows.value = flat;
-        });
-      }
-    });
-
-    function addMappingRow() {
-      mappingRows.value.push({ _id: rowIdCounter++, field: '', key: '', value: '', _editing: true });
-    }
-
-    function confirmRow(row) {
-      if (!row.field || !row.key) { ElMessage.warning('字段名和 Key 不能为空'); return; }
-      row._editing = false;
-    }
-
-    function deleteRow(row) {
-      var idx = mappingRows.value.findIndex(function(r) { return r._id === row._id; });
-      if (idx !== -1) mappingRows.value.splice(idx, 1);
-    }
-
-    function saveMappings() {
-      var editing = mappingRows.value.filter(function(r) { return r._editing; });
-      if (editing.length) { ElMessage.warning('请先确认所有编辑中的行'); return; }
-
-      var grouped = {};
-      mappingRows.value.forEach(function(r) {
-        if (!r.field) return;
-        if (!grouped[r.field]) grouped[r.field] = {};
-        grouped[r.field][r.key] = r.value;
-      });
-
-      fetch('api/mappings').then(function(r) { return r.json(); }).then(function(existing) {
-        var existingFields = existing.map(function(r) { return r.field_name; });
-        var newFields = Object.keys(grouped);
-
-        var deletePromises = existingFields
-          .filter(function(f) { return newFields.indexOf(f) === -1; })
-          .map(function(f) { return fetch('api/mappings/' + f, { method: 'DELETE' }); });
-
-        var savePromises = newFields.map(function(field) {
-          return fetch('api/mappings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ field_name: field, mapping_json: JSON.stringify(grouped[field]) })
-          });
-        });
-
-        return Promise.all(deletePromises.concat(savePromises));
-      }).then(function() {
-        ElMessage.success('保存成功');
-        showMappings.value = false;
-      }).catch(function() {
-        ElMessage.error('保存失败');
-      });
-    }
-
     return {
       fileInput, isDragging, status, session, result, activeTab, sessions,
-      showMappings, mappingRows, mappingSearch, filteredMappingRows,
-      totalDiffs, onFileChange, onDrop, doRefresh, loadSession, fmtTime,
-      addMappingRow, confirmRow, deleteRow, saveMappings
+      showMappings, mappingList,
+      onFileChange, onDrop, doRefresh, loadSession, totalDiffs,
+      addMappingRow, deleteMapping, saveMappings, fmtTime
     };
   }
 }).use(ElementPlus).mount('#app');
