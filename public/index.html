@@ -357,7 +357,7 @@ createApp({
     const mappingSearch = ref('');
     let _rowId = 0;
 
-        const { watch, computed } = Vue;
+        // watch & computed already imported at top level
 
     const filteredMappingRows = computed(() =>
       mappingSearch.value
