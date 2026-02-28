@@ -61,6 +61,8 @@
 
     .cell-diff-a { background: #fff0f0 !important; color: #f56c6c; font-weight: 600; }
     .cell-diff-b { background: #f0f7ff !important; color: #409eff; font-weight: 600; }
+    .cell-diff { background: #fff8ec !important; font-weight: 600; color: #333; }
+    .diff-other { color: #f56c6c; font-size: 12px; }
     .row-only-a td { background: #fff5f5 !important; }
     .row-only-b td { background: #f0f7ff !important; }
 
@@ -159,26 +161,63 @@
   </div>
 
   <!-- Mappings Dialog -->
-  <el-dialog v-model="showMappings" title="字段映射配置" width="700px" destroy-on-close>
-    <div style="margin-bottom:12px;color:#606266;font-size:13px">
-      映射关系用于将原始文件的数字编码转换为中文，以便与阿飞文件进行正确对比。<br>
-      格式：JSON 对象，例如 <code>{"1":"允许","0":"不允许"}</code>
+  <el-dialog v-model="showMappings" title="字段映射配置" width="760px" destroy-on-close>
+    <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+      <el-input v-model="mappingSearch" placeholder="按字段名搜索..." clearable style="width:220px">
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+      <el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button>
+      <span style="color:#909399;font-size:12px;margin-left:auto">
+        共 {{ filteredMappingRows.length }} 条 / {{ mappingRows.length }} 条
+      </span>
     </div>
-    <div v-for="(m, i) in mappingList" :key="i" class="mapping-row">
-      <el-input v-model="m.field_name" placeholder="字段名 (如 SubstitutionFlag)" style="width:200px" />
-      <el-input v-model="m.mapping_json" placeholder='{"1":"允许","0":"不允许"}' />
-      <el-button type="danger" plain size="small" @click="deleteMapping(m.field_name, i)">删除</el-button>
+
+    <div class="table-wrap" style="max-height:420px;overflow-y:auto;margin-bottom:0">
+      <table class="diff-table">
+        <thead>
+          <tr>
+            <th style="width:180px">字段名</th>
+            <th style="width:120px">Key（原始值）</th>
+            <th style="width:160px">Value（映射值）</th>
+            <th style="width:80px">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="filteredMappingRows.length===0">
+            <td colspan="4" style="text-align:center;color:#c0c4cc;padding:20px">暂无映射</td>
+          </tr>
+          <tr v-for="(row, i) in filteredMappingRows" :key="row._id">
+            <td>
+              <el-input v-if="row._editing" v-model="row.field" size="small" placeholder="字段名" />
+              <code v-else style="font-size:12px">{{ row.field }}</code>
+            </td>
+            <td>
+              <el-input v-if="row._editing" v-model="row.key" size="small" placeholder="如 1" />
+              <span v-else>{{ row.key }}</span>
+            </td>
+            <td>
+              <el-input v-if="row._editing" v-model="row.value" size="small" placeholder="如 允许" />
+              <span v-else>{{ row.value }}</span>
+            </td>
+            <td>
+              <el-button v-if="!row._editing" link size="small" type="primary" @click="row._editing=true">编辑</el-button>
+              <el-button v-if="row._editing" link size="small" type="success" @click="confirmEditRow(row)">确认</el-button>
+              <el-button link size="small" type="danger" @click="deleteMappingRow(row, i)">删除</el-button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    <el-button size="small" @click="addMappingRow" style="margin-top:8px">+ 新增</el-button>
+
     <template #footer>
-      <el-button @click="showMappings=false">取消</el-button>
-      <el-button type="primary" @click="saveMappings">保存</el-button>
+      <el-button @click="showMappings=false">关闭</el-button>
+      <el-button type="primary" @click="saveMappings">保存全部</el-button>
     </template>
   </el-dialog>
 </div>
 
 <script>
-const { createApp, ref, onMounted } = Vue;
+const { createApp, ref, onMounted, watch, computed } = Vue;
 const { ElMessage } = ElementPlus;
 
 // ── DiffPanel ─────────────────────────────────────────────────────────────────
@@ -269,15 +308,12 @@ const DiffPanel = {
             <tr>
               <th style="width:90px">证券代码</th>
               <th style="width:90px">证券名称</th>
-              <template v-for="f in diff.securityFields" :key="f">
-                <th>{{ diff.fieldLabels[f]||f }}（{{ labelA }}）</th>
-                <th>{{ diff.fieldLabels[f]||f }}（{{ labelB }}）</th>
-              </template>
+              <th v-for="f in diff.securityFields" :key="f">{{ diff.fieldLabels[f]||f }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filteredSecurityRows().length===0">
-              <td :colspan="2+diff.securityFields.length*2" style="text-align:center;color:#c0c4cc;padding:20px">无差异</td>
+              <td :colspan="2+diff.securityFields.length" style="text-align:center;color:#c0c4cc;padding:20px">无差异</td>
             </tr>
             <tr v-for="row in filteredSecurityRows()" :key="row.id"
                 :class="row.onlyIn==='A'?'row-only-a':row.onlyIn==='B'?'row-only-b':''">
@@ -287,14 +323,15 @@ const DiffPanel = {
                 <span v-if="row.onlyIn==='B'" class="tag-only tag-only-b">仅{{ labelB }}</span>
               </td>
               <td>{{ row.name }}</td>
-              <template v-for="f in diff.securityFields" :key="f">
-                <td :class="!row.onlyIn && row.fields[f]?.diff ? 'cell-diff-a' : ''">
-                  {{ row.onlyIn==='B' ? '—' : (row.fields[f]?.valueA ?? '—') }}
-                </td>
-                <td :class="!row.onlyIn && row.fields[f]?.diff ? 'cell-diff-b' : ''">
-                  {{ row.onlyIn==='A' ? '—' : (row.fields[f]?.valueB ?? '—') }}
-                </td>
-              </template>
+              <td v-for="f in diff.securityFields" :key="f"
+                  :class="!row.onlyIn && row.fields[f]?.diff ? 'cell-diff' : ''">
+                <template v-if="row.onlyIn==='A'">{{ row.fields[f]?.valueA ?? '—' }}</template>
+                <template v-else-if="row.onlyIn==='B'">{{ row.fields[f]?.valueB ?? '—' }}</template>
+                <template v-else-if="row.fields[f]?.diff">
+                  {{ row.fields[f]?.valueA ?? '—' }}<span class="diff-other">（{{ row.fields[f]?.valueB ?? '—' }}）</span>
+                </template>
+                <template v-else>{{ row.fields[f]?.valueA ?? '—' }}</template>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -316,8 +353,17 @@ createApp({
     const activeTab = ref('AB');
     const sessions = ref([]);
     const showMappings = ref(false);
-    const mappingList = ref([]);
-    let pollTimer = null;
+    const mappingRows = ref([]);   // [{_id, field, key, value, _editing, _isNew}]
+    const mappingSearch = ref('');
+    let _rowId = 0;
+
+        const { watch, computed } = Vue;
+
+    const filteredMappingRows = computed(() =>
+      mappingSearch.value
+        ? mappingRows.value.filter(r => r.field.toLowerCase().includes(mappingSearch.value.toLowerCase()))
+        : mappingRows.value
+    );
 
     onMounted(() => { loadSessions(); });
 
@@ -394,47 +440,79 @@ createApp({
 
     // Mappings
     async function openMappings() {
-      const rows = await fetch('api/mappings').then(r=>r.json());
-      mappingList.value = rows.map(r => ({ field_name: r.field_name, mapping_json: r.mapping_json }));
-      showMappings.value = true;
+      const rows = await fetch('api/mappings').then(r => r.json());
+      const flat = [];
+      for (const r of rows) {
+        try {
+          const m = JSON.parse(r.mapping_json);
+          for (const [k, v] of Object.entries(m)) {
+            flat.push({ _id: _rowId++, field: r.field_name, key: k, value: v, _editing: false, _isNew: false });
+          }
+        } catch {}
+      }
+      mappingRows.value = flat;
     }
 
     function addMappingRow() {
-      mappingList.value.push({ field_name: '', mapping_json: '{}' });
+      mappingRows.value.push({ _id: _rowId++, field: '', key: '', value: '', _editing: true, _isNew: true });
     }
 
-    async function deleteMapping(fieldName, idx) {
-      if (fieldName) await fetch(`api/mappings/${fieldName}`, { method: 'DELETE' });
-      mappingList.value.splice(idx, 1);
+    function confirmEditRow(row) {
+      if (!row.field || !row.key) { ElMessage.warning('字段名和 Key 不能为空'); return; }
+      row._editing = false;
+      row._isNew = false;
+    }
+
+    function deleteMappingRow(row, idx) {
+      const realIdx = mappingRows.value.findIndex(r => r._id === row._id);
+      if (realIdx !== -1) mappingRows.value.splice(realIdx, 1);
     }
 
     async function saveMappings() {
-      for (const m of mappingList.value) {
-        if (!m.field_name) continue;
-        try {
-          JSON.parse(m.mapping_json);
-          await fetch('api/mappings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ field_name: m.field_name, mapping_json: m.mapping_json })
-          });
-        } catch { ElMessage.error(`${m.field_name} 的映射 JSON 格式有误`); return; }
+      // Check all rows confirmed
+      const editing = mappingRows.value.filter(r => r._editing);
+      if (editing.length) { ElMessage.warning('请先确认所有编辑中的行'); return; }
+
+      // Group by field
+      const grouped = {};
+      for (const r of mappingRows.value) {
+        if (!r.field) continue;
+        if (!grouped[r.field]) grouped[r.field] = {};
+        grouped[r.field][r.key] = r.value;
       }
+
+      // Get existing fields to detect deletions
+      const existing = await fetch('api/mappings').then(r => r.json());
+      const existingFields = new Set(existing.map(r => r.field_name));
+      const newFields = new Set(Object.keys(grouped));
+
+      // Delete removed fields
+      for (const f of existingFields) {
+        if (!newFields.has(f)) await fetch(`api/mappings/${f}`, { method: 'DELETE' });
+      }
+
+      // Save all current fields
+      for (const [field, mapping] of Object.entries(grouped)) {
+        await fetch('api/mappings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field_name: field, mapping_json: JSON.stringify(mapping) })
+        });
+      }
+
       ElMessage.success('保存成功');
       showMappings.value = false;
     }
 
-    // Watch showMappings to load data
-    const { watch } = Vue;
     watch(showMappings, async (v) => { if (v) await openMappings(); });
 
     function fmtTime(ts) { return new Date(ts * 1000).toLocaleString('zh-CN'); }
 
     return {
       fileInput, isDragging, status, session, result, activeTab, sessions,
-      showMappings, mappingList,
+      showMappings, mappingRows, mappingSearch, filteredMappingRows,
       onFileChange, onDrop, doRefresh, loadSession, totalDiffs,
-      addMappingRow, deleteMapping, saveMappings, fmtTime
+      addMappingRow, confirmEditRow, deleteMappingRow, saveMappings, fmtTime
     };
   }
 }).use(ElementPlus).mount('#app');
