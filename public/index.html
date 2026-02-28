@@ -163,9 +163,7 @@
   <!-- Mappings Dialog -->
   <el-dialog v-model="showMappings" title="字段映射配置" width="760px" destroy-on-close>
     <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
-      <el-input v-model="mappingSearch" placeholder="按字段名搜索..." clearable style="width:220px">
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
+      <el-input v-model="mappingSearch" placeholder="🔍 按字段名搜索..." clearable style="width:220px"></el-input>
       <el-button type="primary" size="small" @click="addMappingRow">+ 新增映射</el-button>
       <span style="color:#909399;font-size:12px;margin-left:auto">
         共 {{ filteredMappingRows.length }} 条 / {{ mappingRows.length }} 条
