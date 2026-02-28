@@ -284,7 +284,7 @@ const DiffPanel = {
             <tr>
               <th style="width:90px">证券代码</th>
               <th style="width:90px">证券名称</th>
-              <th v-for="f in diff.securityFields" :key="f">{{ diff.fieldLabels[f]||f }} <el-tooltip :content="f" placement="top"><span style="color:#c0c4cc;cursor:help;font-size:12px">❓</span></el-tooltip></th>
+              <th v-for="f in diff.securityFields" :key="f">{{ diff.fieldLabels[f]||f }} <el-tooltip :content="f" placement="top"><span style="color:#c0c4cc;cursor:help;font-size:11px;font-weight:400">(?)</span></el-tooltip></th>
             </tr>
           </thead>
           <tbody>
