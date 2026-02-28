@@ -177,10 +177,10 @@
         <tbody>
           <tr v-if="filteredMappingRows.length===0"><td colspan="4" style="text-align:center;color:#c0c4cc;padding:20px">暂无映射</td></tr>
           <tr v-for="(m, i) in filteredMappingRows" :key="i">
-            <td><el-input v-model="m.field" size="small" placeholder="字段名" /></td>
-            <td><el-input v-model="m.key" size="small" placeholder="如 1" /></td>
-            <td><el-input v-model="m.value" size="small" placeholder="如 允许" /></td>
-            <td><el-button link size="small" type="danger" @click="deleteMapping(i)">删除</el-button></td>
+            <td><el-input v-model="m.field" size="small" :disabled="!m.editing" placeholder="字段名" /></td>
+            <td><el-input v-model="m.key" size="small" :disabled="!m.editing" placeholder="如 1" /></td>
+            <td><el-input v-model="m.value" size="small" :disabled="!m.editing" placeholder="如 允许" /></td>
+            <td><el-button link size="small" :type="m.editing?'success':'primary'" @click="m.editing=!m.editing">{{ m.editing?'确认':'修改' }}</el-button> <el-button link size="small" type="danger" @click="deleteMapping(i)">删除</el-button></td>
           </tr>
         </tbody>
       </table>
@@ -416,7 +416,7 @@ createApp({
           try {
             const m = JSON.parse(r.mapping_json);
             Object.keys(m).forEach(k => {
-              flat.push({ field: r.field_name, key: k, value: m[k] });
+              flat.push({ field: r.field_name, key: k, value: m[k], editing: false });
             });
           } catch(e) {}
         });
@@ -425,7 +425,7 @@ createApp({
     });
 
     function addMappingRow() {
-      mappingRows.value.push({ field: '', key: '', value: '' });
+      mappingRows.value.push({ field: '', key: '', value: '', editing: true });
     }
 
     function deleteMapping(idx) {
