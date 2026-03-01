@@ -71,7 +71,17 @@ async function tryDownloadXML(fundCode, listCode, date, cookie) {
   console.log(`[DownloadXML] HTTP状态: ${r.status}, 大小: ${r.body.length} 字节`);
   
   if (r.status !== 200) return null;
-  return r.body.toString('utf8');
+  
+  const content = r.body.toString('utf8');
+  console.log(`[DownloadXML] 返回内容前100字符: ${content.substring(0, 100)}`);
+  
+  // 验证是否为有效 XML（至少包含 <?xml 或 <SSEPortfolioCompositionFile）
+  if (!content.includes('<?xml') && !content.includes('<SSEPortfolioCompositionFile')) {
+    console.log(`[DownloadXML] 内容不是有效的 XML，跳过`);
+    return null;
+  }
+  
+  return content;
 }
 
 async function downloadXML(fundCode, date, cookie) {
