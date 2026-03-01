@@ -35,7 +35,6 @@ const REFERER = 'https://e.gtfund.com/Etrade/Jijin/view/id/';
 
 async function getCookie(fundCode) {
   console.log(`[Cookie] 开始获取基金 ${fundCode} 的 Cookie...`);
-  // Step 1: get initial cookie from Set-Cookie header
   const r1 = await httpsGet(BASE, `/Etrade/Jijin/view/id/${fundCode}`, { 'User-Agent': UA });
   console.log(`[Cookie] Step 1 HTTP状态: ${r1.status}`);
   const sc = r1.headers['set-cookie'] || [];
@@ -47,7 +46,6 @@ async function getCookie(fundCode) {
   }
   console.log(`[Cookie] Step 1 获取到 C3VK: ${m1[1].substring(0, 20)}...`);
 
-  // Step 2: use that cookie to get the real session cookie from JS challenge response
   const r2 = await httpsGet(BASE, `/Etrade/Jijin/view/id/${fundCode}`, {
     'User-Agent': UA,
     'Cookie': `C3VK=${m1[1]}`
@@ -60,47 +58,52 @@ async function getCookie(fundCode) {
   return finalCookie;
 }
 
-/**
- * Download the XML PCF file for a given fund code and date (YYYYMMDD)
- */
-async function downloadXML(fundCode, date, cookie) {
-  // The申购赎回清单 uses fundCode+1 as the list code (e.g. 561300 → 561301)
-  const listCode = String(parseInt(fundCode) + 1).padStart(6, '0');
+// 尝试获取 XML，返回 null 表示失败
+async function tryDownloadXML(fundCode, listCode, date, cookie) {
   const url = `/Etrade/FundDetail/getETFFile/id/${listCode}/date/${date}`;
-  console.log(`[DownloadXML] 基金: ${fundCode}, 列表代码: ${listCode}, 日期: ${date}`);
-  console.log(`[DownloadXML] URL: https://${BASE}${url}`);
-  console.log(`[DownloadXML] Cookie: ${cookie.substring(0, 30)}...`);
+  console.log(`[DownloadXML] 尝试列表代码: ${listCode}`);
   
   const r = await httpsGet(BASE, url, {
     'User-Agent': UA,
     'Referer': REFERER + fundCode,
     'Cookie': cookie
   });
-  console.log(`[DownloadXML] HTTP状态: ${r.status}, 响应大小: ${r.body.length} 字节`);
+  console.log(`[DownloadXML] HTTP状态: ${r.status}, 大小: ${r.body.length} 字节`);
   
-  if (r.status !== 200) {
-    console.error(`[DownloadXML] 错误: HTTP ${r.status}`);
-    console.error(`[DownloadXML] 响应内容: ${r.body.toString().substring(0, 200)}`);
-    throw new Error(`Download failed: HTTP ${r.status}`);
-  }
-  const result = r.body.toString('utf8');
-  console.log(`[DownloadXML] 成功, XML前200字符: ${result.substring(0, 200)}`);
-  return result;
+  if (r.status !== 200) return null;
+  return r.body.toString('utf8');
 }
 
-/**
- * Fetch申购赎回清单 data from cochin API
- */
-async function fetchAPIData(fundCode, date, cookie) {
-  // date format: YYYY-MM-DD
-  const dateFormatted = `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`;
-  const listCode = String(parseInt(fundCode) + 1).padStart(6, '0');
-  const body = JSON.stringify({ api: 'info.etf', params: { code: listCode, date: dateFormatted } });
+async function downloadXML(fundCode, date, cookie) {
+  // 策略：先尝试 fundCode + 1，失败再试原始 fundCode
+  const listCodePlus1 = String(parseInt(fundCode) + 1).padStart(6, '0');
+  const listCodeOriginal = fundCode;
   
-  console.log(`[API] 基金: ${fundCode}, 列表代码: ${listCode}, 日期: ${dateFormatted}`);
-  console.log(`[API] URL: https://${BASE}/Etrade/Public/cochin/info.etf`);
-  console.log(`[API] 请求体: ${body}`);
-  console.log(`[API] Cookie: ${cookie.substring(0, 30)}...`);
+  console.log(`[DownloadXML] 基金: ${fundCode}, 日期: ${date}, 尝试: ${listCodePlus1} → ${listCodeOriginal}`);
+  
+  // 第一次尝试：fundCode + 1
+  let result = await tryDownloadXML(fundCode, listCodePlus1, date, cookie);
+  if (result) {
+    console.log(`[DownloadXML] ✓ 使用 +1 代码(${listCodePlus1})成功`);
+    return result;
+  }
+  
+  // 第二次尝试：原始 fundCode
+  console.log(`[DownloadXML] +1失败，尝试原始代码...`);
+  result = await tryDownloadXML(fundCode, listCodeOriginal, date, cookie);
+  if (result) {
+    console.log(`[DownloadXML] ✓ 使用原始代码(${listCodeOriginal})成功`);
+    return result;
+  }
+  
+  throw new Error(`无法获取基金 ${fundCode} 的PCF文件，代码 ${listCodePlus1} 和 ${listCodeOriginal} 均失败`);
+}
+
+// 尝试调用 API，返回 null 表示失败
+async function tryFetchAPI(fundCode, listCode, dateFormatted, cookie) {
+  const body = JSON.stringify({ api: 'info.etf', params: { code: listCode, date: dateFormatted } });
+  console.log(`[API] 尝试列表代码: ${listCode}`);
+  console.log(`[API] 请求: ${body}`);
 
   const r = await httpsPost(BASE, '/Etrade/Public/cochin/info.etf', {
     'User-Agent': UA,
@@ -110,15 +113,44 @@ async function fetchAPIData(fundCode, date, cookie) {
     'Cookie': cookie
   }, body);
   
-  console.log(`[API] HTTP状态: ${r.status}, 响应: ${r.body.substring(0, 200)}`);
+  console.log(`[API] HTTP状态: ${r.status}, 响应: ${r.body.substring(0, 150)}`);
 
-  const data = JSON.parse(r.body);
-  if (data.httpCode && data.httpCode !== 200) {
-    console.error(`[API] 错误: httpCode=${data.httpCode}, message=${data.message}`);
-    throw new Error(`API error: ${data.message}`);
+  try {
+    const data = JSON.parse(r.body);
+    if (data.httpCode && data.httpCode !== 200) {
+      console.log(`[API] 返回错误: ${data.message}`);
+      return null;
+    }
+    return data;
+  } catch (e) {
+    console.log(`[API] JSON解析失败`);
+    return null;
   }
-  console.log(`[API] 成功获取数据`);
-  return data;
+}
+
+async function fetchAPIData(fundCode, date, cookie) {
+  const dateFormatted = `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`;
+  const listCodePlus1 = String(parseInt(fundCode) + 1).padStart(6, '0');
+  const listCodeOriginal = fundCode;
+  
+  console.log(`[API] 基金: ${fundCode}, 日期: ${dateFormatted}, 尝试: ${listCodePlus1} → ${listCodeOriginal}`);
+
+  // 第一次尝试：fundCode + 1
+  let result = await tryFetchAPI(fundCode, listCodePlus1, dateFormatted, cookie);
+  if (result) {
+    console.log(`[API] ✓ 使用 +1 代码(${listCodePlus1})成功`);
+    return result;
+  }
+  
+  // 第二次尝试：原始 fundCode
+  console.log(`[API] +1失败，尝试原始代码...`);
+  result = await tryFetchAPI(fundCode, listCodeOriginal, dateFormatted, cookie);
+  if (result) {
+    console.log(`[API] ✓ 使用原始代码(${listCodeOriginal})成功`);
+    return result;
+  }
+  
+  throw new Error(`无法获取基金 ${fundCode} 的API数据，代码 ${listCodePlus1} 和 ${listCodeOriginal} 均失败`);
 }
 
 module.exports = { getCookie, downloadXML, fetchAPIData };
