@@ -54,8 +54,12 @@ async function fetchAndSave(sessionId, fundCode, tradingDay) {
   const cookie = await getCookie(fundCode);
   const xmlB = await downloadXML(fundCode, tradingDay, cookie);
   saveRecords(sessionId, 'B', parseXML(xmlB));
-  const apiC = await fetchAPIData(fundCode, tradingDay, cookie);
-  saveRecords(sessionId, 'C', parseAPIData(apiC));
+  try {
+    const apiC = await fetchAPIData(fundCode, tradingDay, cookie);
+    saveRecords(sessionId, 'C', parseAPIData(apiC));
+  } catch (e) {
+    console.warn('阿飞 API 获取失败，跳过来源 C:', e.message);
+  }
 }
 
 // ── routes ────────────────────────────────────────────────────────────────────
