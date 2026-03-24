@@ -29,6 +29,15 @@ db.exec(`
     mapping_json TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS raw_files (
+    session_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    PRIMARY KEY (session_id, source)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_records_session ON records(session_id, source);
 `);
 

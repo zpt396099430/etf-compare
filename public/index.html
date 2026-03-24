@@ -120,8 +120,12 @@
         </template>
         <template v-else>处理失败：{{ session.error }}</template>
       </span>
-      <el-button v-if="status==='done'" size="small" type="primary" plain style="margin-left:auto"
-                 :loading="status==='processing'" @click="doRefresh">🔄 重新获取对比</el-button>
+      <div v-if="status==='done'" style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <el-button size="small" plain @click="downloadSource('A')">⬇️ 原始文件</el-button>
+        <el-button size="small" plain :disabled="!(result && result.downloads && result.downloads.B)" @click="downloadSource('B')">⬇️ 下载文件</el-button>
+        <el-button size="small" plain :disabled="!(result && result.downloads && result.downloads.C)" @click="downloadSource('C')">⬇️ 阿飞文件</el-button>
+        <el-button size="small" type="primary" plain :loading="status==='processing'" @click="doRefresh">🔄 重新获取对比</el-button>
+      </div>
     </div>
 
     <!-- Results -->
@@ -431,6 +435,11 @@ createApp({
       result.value = data;
     }
 
+    function downloadSource(source) {
+      if (!session.value || !session.value.id) return;
+      window.open(`api/download/${session.value.id}/${source}`, '_blank');
+    }
+
     async function loadSession(id) {
       const s = await fetch(`api/status/${id}`).then(r=>r.json());
       session.value = s; status.value = s.status;
@@ -516,7 +525,7 @@ createApp({
       fileInput, isDragging, status, session, result, activeTab, sessions,
       showMappings, mappingRows, mappingSearch, filteredMappingRows,
       showEditRow, editRowData, editRowIsNew, editRow, confirmEditRow,
-      onFileChange, onDrop, doRefresh, loadSession, totalDiffs,
+      onFileChange, onDrop, doRefresh, loadSession, totalDiffs, downloadSource,
       addMappingRow, deleteMapping, saveAllMappings, fmtTime
     };
   }

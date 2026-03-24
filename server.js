@@ -41,6 +41,16 @@ function loadData(sessionId, source) {
   return { headers, securities };
 }
 
+function saveRawFile(sessionId, source, filename, mimeType, content) {
+  db.prepare(
+    'INSERT OR REPLACE INTO raw_files (session_id, source, filename, mime_type, content) VALUES (?, ?, ?, ?, ?)'
+  ).run(sessionId, source, filename, mimeType, content);
+}
+
+function getRawFile(sessionId, source) {
+  return db.prepare('SELECT * FROM raw_files WHERE session_id=? AND source=?').get(sessionId, source);
+}
+
 function getMappings() {
   const rows = db.prepare('SELECT * FROM mappings').all();
   const result = {};
@@ -56,6 +66,7 @@ async function fetchAndSave(sessionId, fundCode, tradingDay) {
 
   try {
     const xmlB = await downloadXML(fundCode, tradingDay, cookie);
+    saveRawFile(sessionId, 'B', `download_${fundCode}_${tradingDay}.xml`, 'application/xml; charset=utf-8', xmlB);
     saveRecords(sessionId, 'B', parseXML(xmlB));
   } catch (e) {
     console.warn('下载文件(B)获取失败，跳过来源 B:', e.message);
@@ -64,6 +75,7 @@ async function fetchAndSave(sessionId, fundCode, tradingDay) {
 
   try {
     const apiC = await fetchAPIData(fundCode, tradingDay, cookie);
+    saveRawFile(sessionId, 'C', `afei_${fundCode}_${tradingDay}.json`, 'application/json; charset=utf-8', JSON.stringify(apiC, null, 2));
     saveRecords(sessionId, 'C', parseAPIData(apiC));
   } catch (e) {
     console.warn('阿飞 API 获取失败，跳过来源 C:', e.message);
@@ -93,6 +105,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       const dataA = parseXML(rawContent);
       if (!dataA.fundCode || !dataA.tradingDay) throw new Error('无法从文件中提取基金代码或交易日');
       db.prepare('UPDATE sessions SET fund_code=?, trading_day=? WHERE id=?').run(dataA.fundCode, dataA.tradingDay, sessionId);
+      saveRawFile(sessionId, 'A', req.file.originalname || `upload_${dataA.fundCode}_${dataA.tradingDay}.xml`, req.file.mimetype || 'application/xml; charset=utf-8', rawContent);
       saveRecords(sessionId, 'A', dataA);
       const warnings = await fetchAndSave(sessionId, dataA.fundCode, dataA.tradingDay);
       db.prepare('UPDATE sessions SET status=?, error=? WHERE id=?').run('done', warnings.join('；') || null, sessionId);
@@ -138,9 +151,26 @@ app.get('/api/compare/:id', (req, res) => {
   const dataC = loadData(req.params.id, 'C');
   res.json({
     session,
+    downloads: {
+      A: !!getRawFile(req.params.id, 'A'),
+      B: !!getRawFile(req.params.id, 'B'),
+      C: !!getRawFile(req.params.id, 'C')
+    },
     AB: compare(dataA, dataB, {}),       // 原始 vs 下载：无需映射
     AC: compare(dataA, dataC, mappings)  // 原始 vs 阿飞：应用映射
   });
+});
+
+app.get('/api/download/:id/:source', (req, res) => {
+  const source = String(req.params.source || '').toUpperCase();
+  if (!['A', 'B', 'C'].includes(source)) return res.status(400).json({ error: 'Invalid source' });
+
+  const file = getRawFile(req.params.id, source);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+
+  res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+  res.send(file.content);
 });
 
 // List recent sessions
