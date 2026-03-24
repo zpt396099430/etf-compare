@@ -27,20 +27,28 @@ const FIELD_LABELS = {
   InstrumentID: '证券代码',
   InstrumentName: '证券名称',
   Quantity: '数量',
+  SecurityIDSource: '证券代码源',
   SubstitutionFlag: '替代标志',
   CreationPremiumRate: '申购溢价比例',
   RedemptionDiscountRate: '赎回折价比例',
   SubstitutionCashAmount: '替代金额',
+  CreationCashSubstitute: '申购替代金额',
+  RedemptionCashSubstitute: '赎回替代金额',
   UnderlyingSecurityID: '市场ID',
 };
 
-// Fields to display as columns in the securities table (excluding ID and Name)
 const SECURITY_DISPLAY_FIELDS = [
-  'Quantity', 'SubstitutionFlag', 'CreationPremiumRate',
-  'RedemptionDiscountRate', 'SubstitutionCashAmount', 'UnderlyingSecurityID'
+  'SecurityIDSource',
+  'Quantity',
+  'SubstitutionFlag',
+  'CreationPremiumRate',
+  'RedemptionDiscountRate',
+  'CreationCashSubstitute',
+  'RedemptionCashSubstitute',
+  'SubstitutionCashAmount',
+  'UnderlyingSecurityID'
 ];
 
-// Default value mappings: convert XML numeric codes → Chinese text (for comparison with API data)
 const DEFAULT_MAPPINGS = {
   SubstitutionFlag: { '1': '允许', '0': '不允许', '2': '必须' },
   PublishIOPVFlag: { '1': '是', '0': '否' },

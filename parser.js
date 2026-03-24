@@ -8,7 +8,6 @@ const parser = new XMLParser({
   attributeNamePrefix: '@_'
 });
 
-// Header fields (top-level, non-list)
 const HEADER_FIELDS = [
   'FundInstrumentID','CreationRedemptionUnit','TradingDay','PreTradingDay',
   'NAVperCU','NAV','PreCashComponent','EstimatedCashComponent','MaxCashRatio',
@@ -19,11 +18,10 @@ const HEADER_FIELDS = [
   'FundName','FundCompanyName','UnderlyingIndex'
 ];
 
-// Security fields
 const SECURITY_FIELDS = [
-  'InstrumentID','InstrumentName','Quantity','SubstitutionFlag',
+  'InstrumentID','InstrumentName','Quantity','SecurityIDSource','SubstitutionFlag',
   'CreationPremiumRate','RedemptionDiscountRate','SubstitutionCashAmount',
-  'UnderlyingSecurityID'
+  'CreationCashSubstitute','RedemptionCashSubstitute','UnderlyingSecurityID'
 ];
 
 const ROOT_CANDIDATES = [
@@ -107,10 +105,13 @@ function pickSecurityValue(item, field) {
     InstrumentID: ['InstrumentID', 'SecurityID', 'securityID', 'Code', 'code', 'UnderlyingSecurityID'],
     InstrumentName: ['InstrumentName', 'SecurityName', 'securityName', 'Name', 'name', 'UnderlyingSymbol'],
     Quantity: ['Quantity', 'Qty', 'quantity', 'ComponentShare'],
+    SecurityIDSource: ['SecurityIDSource', 'UnderlyingSecurityIDSource'],
     SubstitutionFlag: ['SubstitutionFlag', 'CashSubstitutionFlag', 'SubstituteFlag'],
     CreationPremiumRate: ['CreationPremiumRate', 'CreationPremiumRatio', 'PremiumRatio'],
-    RedemptionDiscountRate: ['RedemptionDiscountRate', 'RedemptionDiscountRatio'],
+    RedemptionDiscountRate: ['RedemptionDiscountRate', 'RedemptionDiscountRatio', 'DiscountRatio'],
     SubstitutionCashAmount: ['SubstitutionCashAmount', 'CashAmount', 'CreationCashSubstitute'],
+    CreationCashSubstitute: ['CreationCashSubstitute', 'SubstitutionCashAmount', 'CashAmount'],
+    RedemptionCashSubstitute: ['RedemptionCashSubstitute'],
     UnderlyingSecurityID: ['UnderlyingSecurityIDSource', 'MarketID', 'ExchangeID', 'UnderlyingSecurityID']
   };
   return firstDefined(item, aliases[field] || [field]);
@@ -134,15 +135,20 @@ function normalizeHeaderValues(headers) {
 }
 
 function normalizeSecurityFields(sec) {
+  if (sec.CreationCashSubstitute === undefined && sec.SubstitutionCashAmount !== undefined) {
+    sec.CreationCashSubstitute = sec.SubstitutionCashAmount;
+  }
+  if (sec.SubstitutionCashAmount === undefined && sec.CreationCashSubstitute !== undefined) {
+    sec.SubstitutionCashAmount = sec.CreationCashSubstitute;
+  }
   if (sec.RedemptionDiscountRate === undefined && sec.CreationPremiumRate !== undefined) {
     sec.RedemptionDiscountRate = sec.CreationPremiumRate;
   }
+  if (sec.RedemptionCashSubstitute === undefined && sec.SubstitutionCashAmount !== undefined) {
+    sec.RedemptionCashSubstitute = sec.SubstitutionCashAmount;
+  }
 }
 
-/**
- * Parse XML file (source A or B) into normalized structure
- * Returns { fundCode, tradingDay, headers: {}, securities: { id: {} } }
- */
 function parseXML(xmlContent) {
   const cleaned = stripBom(xmlContent);
   if (!cleaned) throw new Error('上传文件为空');
@@ -185,9 +191,6 @@ function parseXML(xmlContent) {
   };
 }
 
-/**
- * Normalize cochin API response (source C) into same structure
- */
 function parseAPIData(apiData) {
   const headers = {};
 
@@ -211,10 +214,16 @@ function parseAPIData(apiData) {
 
   const keyMap = {
     FundInstrumentID: 'FundInstrumentID',
+    SecurityID: 'FundInstrumentID',
+    Symbol: 'FundName',
+    FundManagementCompany: 'FundCompanyName',
+    UnderlyingSecurityID: 'UnderlyingIndex',
     TradingDay: 'TradingDay',
     T1_NAVperCU: 'NAVperCU',
     T1_NAV: 'NAV',
     T1_PreCashComponent: 'PreCashComponent',
+    T_PreCashComponent: 'PreCashComponent',
+    T_EstimateCashComponent: 'EstimatedCashComponent',
     T_EstimatedCashComponent: 'EstimatedCashComponent',
     T_MaxCashRatio: 'MaxCashRatio',
     T_CreationLimit: 'CreationLimit',
@@ -229,6 +238,8 @@ function parseAPIData(apiData) {
     T_CreationRedemptionUnit: 'CreationRedemptionUnit',
     T_CreationRedemptionSwitch: 'CreationRedemptionSwitch',
     T_CreationRedemptionMechanism: 'CreationRedemptionMechanism',
+    RecordNum: 'RecordNumber',
+    TotalRecordNum: 'RecordNumber'
   };
 
   const normalizedHeaders = {};
@@ -244,12 +255,20 @@ function parseAPIData(apiData) {
     const cols = apiData.securities.cols;
     const colMap = {
       '证券ID': 'InstrumentID',
+      '证券代码': 'InstrumentID',
+      '证券代码源': 'SecurityIDSource',
       '证券简称': 'InstrumentName',
       '该证券数量': 'Quantity',
+      '成分证券数': 'Quantity',
       '替代标志': 'SubstitutionFlag',
+      '现金替代标志': 'SubstitutionFlag',
       '申购溢价比例': 'CreationPremiumRate',
+      '溢价比例': 'CreationPremiumRate',
       '赎回折价比例': 'RedemptionDiscountRate',
+      '折价比例': 'RedemptionDiscountRate',
       '替代金额': 'SubstitutionCashAmount',
+      '申购替代金额': 'CreationCashSubstitute',
+      '赎回替代金额': 'RedemptionCashSubstitute',
       '市场ID': 'UnderlyingSecurityID'
     };
     for (const row of apiData.securities.rows) {
@@ -259,6 +278,7 @@ function parseAPIData(apiData) {
         const xmlField = colMap[col] || col;
         securities[id][xmlField] = String(row[i] ?? '');
       });
+      normalizeSecurityFields(securities[id]);
     }
   }
 

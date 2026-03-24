@@ -3,20 +3,22 @@ const { FIELD_LABELS, SECURITY_DISPLAY_FIELDS } = require('./labels');
 function normalizeVal(v) {
   if (v === undefined || v === null || v === '') return '';
   const s = String(v).trim();
+  if (!s) return '';
+
   if (s.endsWith('%')) {
     const n = parseFloat(s);
     if (!isNaN(n)) return String(n / 100);
   }
+
+  const lowered = s.toLowerCase();
+  if (['是', 'y', 'yes', 'true'].includes(lowered)) return '1';
+  if (['否', 'n', 'no', 'false'].includes(lowered)) return '0';
+
   const n = parseFloat(s);
-  if (!isNaN(n)) return String(n);
-  return s.toLowerCase();
+  if (!isNaN(n) && /^-?\d+(\.\d+)?$/.test(s)) return String(n);
+  return lowered;
 }
 
-/**
- * Compare two normalized data objects.
- * mappings: { fieldName: { '1': '允许', ... } } — applied to source A values before comparison
- * Returns { headerRows, securityRows, stats }
- */
 function compare(dataA, dataB, mappings = {}) {
   function applyMapping(field, value) {
     if (value === null || value === undefined) return value;
@@ -25,7 +27,6 @@ function compare(dataA, dataB, mappings = {}) {
     return value;
   }
 
-  // ── Header rows ────────────────────────────────────────────────────────────
   const allHeaderKeys = new Set([...Object.keys(dataA.headers), ...Object.keys(dataB.headers)]);
   const headerRows = [];
   for (const field of allHeaderKeys) {
@@ -36,7 +37,6 @@ function compare(dataA, dataB, mappings = {}) {
     headerRows.push({ field, labelCN: FIELD_LABELS[field] || field, valueA: rawA, valueB: rawB, diff });
   }
 
-  // ── Security rows ──────────────────────────────────────────────────────────
   const allIds = new Set([...Object.keys(dataA.securities), ...Object.keys(dataB.securities)]);
   const securityRows = [];
 
@@ -58,12 +58,8 @@ function compare(dataA, dataB, mappings = {}) {
     securityRows.push({ id, name: secA.InstrumentName || secB.InstrumentName || id, onlyIn: null, hasDiff, fields });
   }
 
-  // Add merged display values
-  for (const row of securityRows) {
-    row.merged = buildMergedDisplay(row);
-  }
+  for (const row of securityRows) row.merged = buildMergedDisplay(row);
 
-  // Sort: only-in first, then diffs, then same
   securityRows.sort((a, b) => {
     if (a.onlyIn && !b.onlyIn) return -1;
     if (!a.onlyIn && b.onlyIn) return 1;
@@ -82,7 +78,6 @@ function compare(dataA, dataB, mappings = {}) {
   return { headerRows, securityRows, stats, securityFields: SECURITY_DISPLAY_FIELDS, fieldLabels: FIELD_LABELS };
 }
 
-// Build merged display values for each security field
 function buildMergedDisplay(row) {
   const merged = {};
   for (const [f, v] of Object.entries(row.fields)) {
