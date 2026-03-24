@@ -135,7 +135,7 @@ function normalizeHeaderValues(headers) {
   delete headers.__Redemption;
 }
 
-function normalizeSecurityFields(sec, { forApi = false } = {}) {
+function normalizeSecurityFields(sec, { forApi = false, isSZSEPcf = false } = {}) {
   if (forApi) {
     if (sec.CreationCashSubstitute === undefined && sec.SubstitutionCashAmount !== undefined) {
       sec.CreationCashSubstitute = sec.SubstitutionCashAmount;
@@ -149,6 +149,14 @@ function normalizeSecurityFields(sec, { forApi = false } = {}) {
     if (sec.RedemptionCashSubstitute === undefined && sec.SubstitutionCashAmount !== undefined) {
       sec.RedemptionCashSubstitute = sec.SubstitutionCashAmount;
     }
+    return;
+  }
+
+  // 沪市老 XML 只有一个“替代金额”，在 A vs C 中应同时对齐到申购/赎回替代金额。
+  // 深市 PCF 有独立的 Creation/RedemptionCashSubstitute，不做这种补位。
+  if (!isSZSEPcf && sec.SubstitutionCashAmount !== undefined) {
+    if (sec.CreationCashSubstitute === undefined) sec.CreationCashSubstitute = sec.SubstitutionCashAmount;
+    if (sec.RedemptionCashSubstitute === undefined) sec.RedemptionCashSubstitute = sec.SubstitutionCashAmount;
   }
 }
 
@@ -184,7 +192,7 @@ function parseXML(xmlContent) {
       const value = pickSecurityValue(item, f, { preserveUnderlyingSecurityId: !isSZSEPcf });
       if (value !== undefined && value !== null && value !== '') securities[id][f] = String(value);
     }
-    normalizeSecurityFields(securities[id], { forApi: false });
+    normalizeSecurityFields(securities[id], { forApi: false, isSZSEPcf });
   }
 
   return {
