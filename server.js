@@ -51,15 +51,26 @@ function getMappings() {
 }
 
 async function fetchAndSave(sessionId, fundCode, tradingDay) {
+  const warnings = [];
   const cookie = await getCookie(fundCode);
-  const xmlB = await downloadXML(fundCode, tradingDay, cookie);
-  saveRecords(sessionId, 'B', parseXML(xmlB));
+
+  try {
+    const xmlB = await downloadXML(fundCode, tradingDay, cookie);
+    saveRecords(sessionId, 'B', parseXML(xmlB));
+  } catch (e) {
+    console.warn('下载文件(B)获取失败，跳过来源 B:', e.message);
+    warnings.push(`下载文件(B)获取失败：${e.message}`);
+  }
+
   try {
     const apiC = await fetchAPIData(fundCode, tradingDay, cookie);
     saveRecords(sessionId, 'C', parseAPIData(apiC));
   } catch (e) {
     console.warn('阿飞 API 获取失败，跳过来源 C:', e.message);
+    warnings.push(`阿飞文件(C)获取失败：${e.message}`);
   }
+
+  return warnings;
 }
 
 // ── routes ────────────────────────────────────────────────────────────────────
@@ -83,8 +94,8 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       if (!dataA.fundCode || !dataA.tradingDay) throw new Error('无法从文件中提取基金代码或交易日');
       db.prepare('UPDATE sessions SET fund_code=?, trading_day=? WHERE id=?').run(dataA.fundCode, dataA.tradingDay, sessionId);
       saveRecords(sessionId, 'A', dataA);
-      await fetchAndSave(sessionId, dataA.fundCode, dataA.tradingDay);
-      db.prepare('UPDATE sessions SET status=? WHERE id=?').run('done', sessionId);
+      const warnings = await fetchAndSave(sessionId, dataA.fundCode, dataA.tradingDay);
+      db.prepare('UPDATE sessions SET status=?, error=? WHERE id=?').run('done', warnings.join('；') || null, sessionId);
     } catch (e) {
       console.error(e);
       db.prepare('UPDATE sessions SET status=?, error=? WHERE id=?').run('error', e.message, sessionId);
@@ -101,8 +112,8 @@ app.post('/api/refresh/:id', async (req, res) => {
 
   ;(async () => {
     try {
-      await fetchAndSave(session.id, session.fund_code, session.trading_day);
-      db.prepare('UPDATE sessions SET status=? WHERE id=?').run('done', session.id);
+      const warnings = await fetchAndSave(session.id, session.fund_code, session.trading_day);
+      db.prepare('UPDATE sessions SET status=?, error=? WHERE id=?').run('done', warnings.join('；') || null, session.id);
     } catch (e) {
       console.error(e);
       db.prepare('UPDATE sessions SET status=?, error=? WHERE id=?').run('error', e.message, session.id);

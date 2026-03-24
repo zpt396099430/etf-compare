@@ -116,6 +116,7 @@
         <template v-if="status==='processing'">正在处理中，请稍候...</template>
         <template v-else-if="status==='done'">
           完成 · 基金代码 <strong>{{ session.fund_code }}</strong> · 交易日 <strong>{{ session.trading_day }}</strong>
+          <span v-if="session && session.error" style="margin-left:8px;color:#e6a23c">（部分数据获取失败：{{ session.error }}）</span>
         </template>
         <template v-else>处理失败：{{ session.error }}</template>
       </span>
