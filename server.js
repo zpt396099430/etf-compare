@@ -69,7 +69,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const rawContent = req.file.buffer.toString('utf8').replace(/^\uFEFF/, '').trim();
-  if (!rawContent.startsWith('<') || !rawContent.includes('PortfolioCompositionFile')) {
+  if (!rawContent.startsWith('<') || (!rawContent.includes('PortfolioCompositionFile') && !rawContent.includes('<PCFFile'))) {
     return res.status(400).json({ error: '上传文件不是可识别的 ETF 清单 XML' });
   }
 

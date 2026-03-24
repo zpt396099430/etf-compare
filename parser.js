@@ -15,7 +15,8 @@ const HEADER_FIELDS = [
   'CreationLimit','RedemptionLimit','NetCreationLimit','NetRedemptionLimit',
   'NetCreationLimitPerUser','NetRedemptionLimitPerUser','CreationLimitPerUser',
   'RedemptionLimitPerUser','PublishIOPVFlag','CreationRedemptionSwitch',
-  'CreationRedemptionMechanism','RecordNumber'
+  'CreationRedemptionMechanism','RecordNumber',
+  'FundName','FundCompanyName','UnderlyingIndex'
 ];
 
 // Security fields
@@ -28,7 +29,8 @@ const SECURITY_FIELDS = [
 const ROOT_CANDIDATES = [
   'SSEPortfolioCompositionFile',
   'SZSEPortfolioCompositionFile',
-  'PortfolioCompositionFile'
+  'PortfolioCompositionFile',
+  'PCFFile'
 ];
 
 const LIST_CANDIDATES = [
@@ -72,31 +74,69 @@ function getComponentItems(root) {
 
 function pickHeader(root, field) {
   const aliases = {
-    FundInstrumentID: ['FundInstrumentID', 'fundInstrumentID', 'FundCode', 'fundCode'],
+    FundInstrumentID: ['FundInstrumentID', 'fundInstrumentID', 'FundCode', 'fundCode', 'SecurityID'],
+    FundName: ['FundName', 'fundName', 'FundShortName', 'Symbol'],
+    FundCompanyName: ['FundCompanyName', 'fundCompanyName', 'FundManagementCompany'],
+    UnderlyingIndex: ['UnderlyingIndex', 'UnderlyingSecurityID', 'TrackingIndexCode'],
     CreationRedemptionUnit: ['CreationRedemptionUnit', 'creationRedemptionUnit'],
     TradingDay: ['TradingDay', 'tradingDay', 'TradeDate', 'tradeDate'],
     PreTradingDay: ['PreTradingDay', 'preTradingDay', 'PrevTradingDay'],
     NAVperCU: ['NAVperCU', 'NAVPerCU', 'navPerCU'],
-    PreCashComponent: ['PreCashComponent', 'PreviousCashComponent'],
+    NAV: ['NAV', 'nav'],
+    PreCashComponent: ['PreCashComponent', 'PreviousCashComponent', 'CashComponent'],
     EstimatedCashComponent: ['EstimatedCashComponent', 'EstimateCashComponent'],
-    PublishIOPVFlag: ['PublishIOPVFlag', 'IOPVFlag'],
-    CreationRedemptionSwitch: ['CreationRedemptionSwitch', 'CreationRedemptionFlag']
+    MaxCashRatio: ['MaxCashRatio', 'maxCashRatio'],
+    CreationLimit: ['CreationLimit', 'creationLimit'],
+    RedemptionLimit: ['RedemptionLimit', 'redemptionLimit'],
+    NetCreationLimit: ['NetCreationLimit', 'netCreationLimit'],
+    NetRedemptionLimit: ['NetRedemptionLimit', 'netRedemptionLimit'],
+    NetCreationLimitPerUser: ['NetCreationLimitPerUser', 'netCreationLimitPerUser'],
+    NetRedemptionLimitPerUser: ['NetRedemptionLimitPerUser', 'netRedemptionLimitPerUser'],
+    CreationLimitPerUser: ['CreationLimitPerUser', 'creationLimitPerUser'],
+    RedemptionLimitPerUser: ['RedemptionLimitPerUser', 'redemptionLimitPerUser'],
+    PublishIOPVFlag: ['PublishIOPVFlag', 'IOPVFlag', 'Publish'],
+    CreationRedemptionSwitch: ['CreationRedemptionSwitch', 'CreationRedemptionFlag'],
+    CreationRedemptionMechanism: ['CreationRedemptionMechanism'],
+    RecordNumber: ['RecordNumber', 'RecordNum', 'TotalRecordNum']
   };
   return firstDefined(root, aliases[field] || [field]);
 }
 
 function pickSecurityValue(item, field) {
   const aliases = {
-    InstrumentID: ['InstrumentID', 'SecurityID', 'securityID', 'Code', 'code'],
-    InstrumentName: ['InstrumentName', 'SecurityName', 'securityName', 'Name', 'name'],
-    Quantity: ['Quantity', 'Qty', 'quantity'],
-    SubstitutionFlag: ['SubstitutionFlag', 'CashSubstitutionFlag'],
-    CreationPremiumRate: ['CreationPremiumRate', 'CreationPremiumRatio'],
+    InstrumentID: ['InstrumentID', 'SecurityID', 'securityID', 'Code', 'code', 'UnderlyingSecurityID'],
+    InstrumentName: ['InstrumentName', 'SecurityName', 'securityName', 'Name', 'name', 'UnderlyingSymbol'],
+    Quantity: ['Quantity', 'Qty', 'quantity', 'ComponentShare'],
+    SubstitutionFlag: ['SubstitutionFlag', 'CashSubstitutionFlag', 'SubstituteFlag'],
+    CreationPremiumRate: ['CreationPremiumRate', 'CreationPremiumRatio', 'PremiumRatio'],
     RedemptionDiscountRate: ['RedemptionDiscountRate', 'RedemptionDiscountRatio'],
-    SubstitutionCashAmount: ['SubstitutionCashAmount', 'CashAmount'],
-    UnderlyingSecurityID: ['UnderlyingSecurityID', 'MarketID', 'ExchangeID']
+    SubstitutionCashAmount: ['SubstitutionCashAmount', 'CashAmount', 'CreationCashSubstitute'],
+    UnderlyingSecurityID: ['UnderlyingSecurityIDSource', 'MarketID', 'ExchangeID', 'UnderlyingSecurityID']
   };
   return firstDefined(item, aliases[field] || [field]);
+}
+
+function normalizeHeaderValues(headers) {
+  if (headers.PublishIOPVFlag === 'Y') headers.PublishIOPVFlag = '1';
+  if (headers.PublishIOPVFlag === 'N') headers.PublishIOPVFlag = '0';
+
+  if (!headers.CreationRedemptionSwitch) {
+    const creation = headers.__Creation;
+    const redemption = headers.__Redemption;
+    if (creation === 'Y' && redemption === 'Y') headers.CreationRedemptionSwitch = '1';
+    else if (creation === 'N' && redemption === 'N') headers.CreationRedemptionSwitch = '0';
+    else if (creation === 'N' && redemption === 'Y') headers.CreationRedemptionSwitch = '2';
+    else if (creation === 'Y' && redemption === 'N') headers.CreationRedemptionSwitch = '3';
+  }
+
+  delete headers.__Creation;
+  delete headers.__Redemption;
+}
+
+function normalizeSecurityFields(sec) {
+  if (sec.RedemptionDiscountRate === undefined && sec.CreationPremiumRate !== undefined) {
+    sec.RedemptionDiscountRate = sec.CreationPremiumRate;
+  }
 }
 
 /**
@@ -116,6 +156,10 @@ function parseXML(xmlContent) {
     if (value !== undefined && value !== null && value !== '') headers[f] = String(value);
   }
 
+  headers.__Creation = firstDefined(root, ['Creation']);
+  headers.__Redemption = firstDefined(root, ['Redemption']);
+  normalizeHeaderValues(headers);
+
   const securities = {};
   const items = getComponentItems(root);
   for (const item of items) {
@@ -130,6 +174,7 @@ function parseXML(xmlContent) {
       const value = pickSecurityValue(item, f);
       if (value !== undefined && value !== null && value !== '') securities[id][f] = String(value);
     }
+    normalizeSecurityFields(securities[id]);
   }
 
   return {
@@ -146,28 +191,24 @@ function parseXML(xmlContent) {
 function parseAPIData(apiData) {
   const headers = {};
 
-  // info array → header
   if (Array.isArray(apiData.info)) {
     for (const [, value, key] of apiData.info) {
       if (key) headers[key] = String(value ?? '');
     }
   }
 
-  // t-1 properties
   if (apiData['t-1']?.properties) {
     for (const [, value, key] of apiData['t-1'].properties) {
       if (key) headers[`T1_${key}`] = String(value ?? '');
     }
   }
 
-  // t properties
   if (apiData.t?.properties) {
     for (const [, value, key] of apiData.t.properties) {
       if (key) headers[`T_${key}`] = String(value ?? '');
     }
   }
 
-  // Map API header keys → XML header keys where possible
   const keyMap = {
     FundInstrumentID: 'FundInstrumentID',
     TradingDay: 'TradingDay',
@@ -194,12 +235,10 @@ function parseAPIData(apiData) {
   for (const [apiKey, xmlKey] of Object.entries(keyMap)) {
     if (headers[apiKey] !== undefined) normalizedHeaders[xmlKey] = headers[apiKey];
   }
-  // keep unmapped keys too
   for (const [k, v] of Object.entries(headers)) {
     if (!Object.keys(keyMap).includes(k)) normalizedHeaders[k] = v;
   }
 
-  // securities
   const securities = {};
   if (apiData.securities?.rows) {
     const cols = apiData.securities.cols;
