@@ -60,6 +60,23 @@ function getMappings() {
   return result;
 }
 
+function bridgeDataForAC(data) {
+  const bridged = {
+    headers: { ...data.headers },
+    securities: {}
+  };
+
+  for (const [id, fields] of Object.entries(data.securities || {})) {
+    const next = { ...fields };
+    if (next.SecurityIDSource == null && next.UnderlyingSecurityID != null) {
+      next.SecurityIDSource = next.UnderlyingSecurityID;
+    }
+    bridged.securities[id] = next;
+  }
+
+  return bridged;
+}
+
 async function fetchAndSave(sessionId, fundCode, tradingDay) {
   const warnings = [];
   const cookie = await getCookie(fundCode);
@@ -149,6 +166,7 @@ app.get('/api/compare/:id', (req, res) => {
   const dataA = loadData(req.params.id, 'A');
   const dataB = loadData(req.params.id, 'B');
   const dataC = loadData(req.params.id, 'C');
+  const dataAForAC = bridgeDataForAC(dataA);
   res.json({
     session,
     downloads: {
@@ -156,8 +174,8 @@ app.get('/api/compare/:id', (req, res) => {
       B: !!getRawFile(req.params.id, 'B'),
       C: !!getRawFile(req.params.id, 'C')
     },
-    AB: compare(dataA, dataB, {}),       // 原始 vs 下载：无需映射
-    AC: compare(dataA, dataC, mappings)  // 原始 vs 阿飞：应用映射
+    AB: compare(dataA, dataB, {}),            // 原始 vs 下载：无需桥接/映射
+    AC: compare(dataAForAC, dataC, mappings)  // 原始 vs 阿飞：应用桥接和映射
   });
 });
 

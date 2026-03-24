@@ -112,7 +112,8 @@ function pickSecurityValue(item, field) {
     SubstitutionCashAmount: ['SubstitutionCashAmount', 'CashAmount', 'CreationCashSubstitute'],
     CreationCashSubstitute: ['CreationCashSubstitute', 'SubstitutionCashAmount', 'CashAmount'],
     RedemptionCashSubstitute: ['RedemptionCashSubstitute'],
-    UnderlyingSecurityID: ['UnderlyingSecurityIDSource', 'MarketID', 'ExchangeID', 'UnderlyingSecurityID']
+    UnderlyingSecurityID: ['MarketID', 'ExchangeID', 'UnderlyingSecurityID'],
+    SecurityIDSource: ['SecurityIDSource', 'UnderlyingSecurityIDSource']
   };
   return firstDefined(item, aliases[field] || [field]);
 }
