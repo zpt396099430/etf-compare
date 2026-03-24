@@ -101,9 +101,9 @@
       <div class="upload-area" :class="{dragover:isDragging}" @click="$refs.fileInput.click()"
            @dragover.prevent="isDragging=true" @dragleave="isDragging=false" @drop.prevent="onDrop">
         <div class="upload-icon">📂</div>
-        <div class="upload-text">点击或拖拽上传<strong>原始文件</strong>（XML格式，支持多选）</div>
-        <div class="upload-hint">系统将自动从国泰基金网站获取下载文件与阿飞文件进行对比</div>
-        <input ref="fileInput" type="file" accept=".xml" multiple style="display:none" @change="onFileChange" />
+        <div class="upload-text">点击或拖拽上传<strong>原始文件</strong>（支持 XML / 文本型 XML，支持多选）</div>
+        <div class="upload-hint">系统会自动识别 XML 内容；即使扩展名不标准，只要内容是 ETF 清单也能尝试解析</div>
+        <input ref="fileInput" type="file" accept=".xml,.XML,text/xml,application/xml,.txt" multiple style="display:none" @change="onFileChange" />
       </div>
     </el-card>
 
@@ -374,12 +374,16 @@ createApp({
     }
 
     async function uploadFiles(files) {
-      const xmlFiles = files.filter(f => f.name.endsWith('.xml'));
-      if (!xmlFiles.length) { ElMessage.error('请上传 XML 格式文件'); return; }
+      const acceptedFiles = files.filter(f => {
+        const name = (f.name || '').toLowerCase();
+        const type = (f.type || '').toLowerCase();
+        return name.endsWith('.xml') || name.endsWith('.txt') || type.includes('xml') || type === 'text/plain' || !name.includes('.');
+      });
+      if (!acceptedFiles.length) { ElMessage.error('请上传 ETF 清单文件（XML 或文本型 XML）'); return; }
       result.value = null; status.value = 'processing'; session.value = null;
       let lastSessionId = null;
       let errCount = 0;
-      for (const file of xmlFiles) {
+      for (const file of acceptedFiles) {
         const fd = new FormData();
         fd.append('file', file);
         try {
@@ -391,7 +395,7 @@ createApp({
           ElMessage.error(file.name + ' 上传失败：' + e.message);
         }
       }
-      if (xmlFiles.length > 1) ElMessage.success('已上传 ' + (xmlFiles.length - errCount) + ' 个文件');
+      if (acceptedFiles.length > 1) ElMessage.success('已上传 ' + (acceptedFiles.length - errCount) + ' 个文件');
       if (lastSessionId) pollStatus(lastSessionId);
       loadSessions();
     }

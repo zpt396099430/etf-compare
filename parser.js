@@ -1,6 +1,12 @@
 const { XMLParser } = require('fast-xml-parser');
 
-const parser = new XMLParser({ ignoreAttributes: false, parseTagValue: false });
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  parseTagValue: false,
+  trimValues: true,
+  removeNSPrefix: true,
+  attributeNamePrefix: '@_'
+});
 
 // Header fields (top-level, non-list)
 const HEADER_FIELDS = [
@@ -19,29 +25,110 @@ const SECURITY_FIELDS = [
   'UnderlyingSecurityID'
 ];
 
+const ROOT_CANDIDATES = [
+  'SSEPortfolioCompositionFile',
+  'SZSEPortfolioCompositionFile',
+  'PortfolioCompositionFile'
+];
+
+const LIST_CANDIDATES = [
+  ['ComponentList', 'Component'],
+  ['componentList', 'component'],
+  ['Components', 'Component'],
+  ['components', 'component']
+];
+
+function stripBom(text) {
+  return typeof text === 'string' ? text.replace(/^\uFEFF/, '').trim() : '';
+}
+
+function firstDefined(obj, keys) {
+  for (const key of keys) {
+    if (obj && obj[key] !== undefined) return obj[key];
+  }
+  return undefined;
+}
+
+function pickRoot(doc) {
+  if (!doc || typeof doc !== 'object') return {};
+  for (const key of ROOT_CANDIDATES) {
+    if (doc[key]) return doc[key];
+  }
+  const firstObjectKey = Object.keys(doc).find(key => doc[key] && typeof doc[key] === 'object');
+  return firstObjectKey ? doc[firstObjectKey] : doc;
+}
+
+function getComponentItems(root) {
+  for (const [listKey, itemKey] of LIST_CANDIDATES) {
+    const list = root?.[listKey]?.[itemKey];
+    if (list) return Array.isArray(list) ? list : [list];
+  }
+
+  const directList = firstDefined(root, ['Component', 'component']);
+  if (directList) return Array.isArray(directList) ? directList : [directList];
+
+  return [];
+}
+
+function pickHeader(root, field) {
+  const aliases = {
+    FundInstrumentID: ['FundInstrumentID', 'fundInstrumentID', 'FundCode', 'fundCode'],
+    CreationRedemptionUnit: ['CreationRedemptionUnit', 'creationRedemptionUnit'],
+    TradingDay: ['TradingDay', 'tradingDay', 'TradeDate', 'tradeDate'],
+    PreTradingDay: ['PreTradingDay', 'preTradingDay', 'PrevTradingDay'],
+    NAVperCU: ['NAVperCU', 'NAVPerCU', 'navPerCU'],
+    PreCashComponent: ['PreCashComponent', 'PreviousCashComponent'],
+    EstimatedCashComponent: ['EstimatedCashComponent', 'EstimateCashComponent'],
+    PublishIOPVFlag: ['PublishIOPVFlag', 'IOPVFlag'],
+    CreationRedemptionSwitch: ['CreationRedemptionSwitch', 'CreationRedemptionFlag']
+  };
+  return firstDefined(root, aliases[field] || [field]);
+}
+
+function pickSecurityValue(item, field) {
+  const aliases = {
+    InstrumentID: ['InstrumentID', 'SecurityID', 'securityID', 'Code', 'code'],
+    InstrumentName: ['InstrumentName', 'SecurityName', 'securityName', 'Name', 'name'],
+    Quantity: ['Quantity', 'Qty', 'quantity'],
+    SubstitutionFlag: ['SubstitutionFlag', 'CashSubstitutionFlag'],
+    CreationPremiumRate: ['CreationPremiumRate', 'CreationPremiumRatio'],
+    RedemptionDiscountRate: ['RedemptionDiscountRate', 'RedemptionDiscountRatio'],
+    SubstitutionCashAmount: ['SubstitutionCashAmount', 'CashAmount'],
+    UnderlyingSecurityID: ['UnderlyingSecurityID', 'MarketID', 'ExchangeID']
+  };
+  return firstDefined(item, aliases[field] || [field]);
+}
+
 /**
  * Parse XML file (source A or B) into normalized structure
  * Returns { fundCode, tradingDay, headers: {}, securities: { id: {} } }
  */
 function parseXML(xmlContent) {
-  const doc = parser.parse(xmlContent);
-  const root = doc.SSEPortfolioCompositionFile || doc;
+  const cleaned = stripBom(xmlContent);
+  if (!cleaned) throw new Error('上传文件为空');
+
+  const doc = parser.parse(cleaned);
+  const root = pickRoot(doc);
 
   const headers = {};
   for (const f of HEADER_FIELDS) {
-    if (root[f] !== undefined) headers[f] = String(root[f]);
+    const value = pickHeader(root, f);
+    if (value !== undefined && value !== null && value !== '') headers[f] = String(value);
   }
 
   const securities = {};
-  const list = root.ComponentList?.Component;
-  if (list) {
-    const items = Array.isArray(list) ? list : [list];
-    for (const item of items) {
-      const id = String(item.InstrumentID);
-      securities[id] = {};
-      for (const f of SECURITY_FIELDS) {
-        if (item[f] !== undefined) securities[id][f] = String(item[f]);
-      }
+  const items = getComponentItems(root);
+  for (const item of items) {
+    const rawId = pickSecurityValue(item, 'InstrumentID');
+    if (rawId === undefined || rawId === null || rawId === '') continue;
+
+    const id = String(rawId).trim();
+    if (!id) continue;
+
+    securities[id] = {};
+    for (const f of SECURITY_FIELDS) {
+      const value = pickSecurityValue(item, f);
+      if (value !== undefined && value !== null && value !== '') securities[id][f] = String(value);
     }
   }
 
@@ -115,7 +202,7 @@ function parseAPIData(apiData) {
   // securities
   const securities = {};
   if (apiData.securities?.rows) {
-    const cols = apiData.securities.cols; // ["证券ID","证券简称","该证券数量","替代标志","申购溢价比例","赎回折价比例","替代金额","市场ID"]
+    const cols = apiData.securities.cols;
     const colMap = {
       '证券ID': 'InstrumentID',
       '证券简称': 'InstrumentName',

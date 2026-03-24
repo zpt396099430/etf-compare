@@ -67,13 +67,19 @@ async function fetchAndSave(sessionId, fundCode, tradingDay) {
 // Upload 原始文件 → fetch 下载文件(B) + 阿飞文件(C)
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const rawContent = req.file.buffer.toString('utf8').replace(/^\uFEFF/, '').trim();
+  if (!rawContent.startsWith('<') || !rawContent.includes('PortfolioCompositionFile')) {
+    return res.status(400).json({ error: '上传文件不是可识别的 ETF 清单 XML' });
+  }
+
   const sessionId = uuidv4();
   db.prepare('INSERT INTO sessions (id, status) VALUES (?, ?)').run(sessionId, 'processing');
   res.json({ sessionId });
 
   ;(async () => {
     try {
-      const dataA = parseXML(req.file.buffer.toString('utf8'));
+      const dataA = parseXML(rawContent);
       if (!dataA.fundCode || !dataA.tradingDay) throw new Error('无法从文件中提取基金代码或交易日');
       db.prepare('UPDATE sessions SET fund_code=?, trading_day=? WHERE id=?').run(dataA.fundCode, dataA.tradingDay, sessionId);
       saveRecords(sessionId, 'A', dataA);
