@@ -60,7 +60,7 @@ function getMappings() {
   return result;
 }
 
-function bridgeDataForAC(data) {
+function bridgeADataForAC(data) {
   const bridged = {
     headers: { ...data.headers },
     securities: {}
@@ -68,6 +68,8 @@ function bridgeDataForAC(data) {
 
   for (const [id, fields] of Object.entries(data.securities || {})) {
     const next = { ...fields };
+    // 仅在 A→C 对比时，额外补一份“证券代码源”用于对齐 C；
+    // 不覆盖也不改变原本的市场ID字段。
     if (next.SecurityIDSource == null && next.UnderlyingSecurityID != null) {
       next.SecurityIDSource = next.UnderlyingSecurityID;
     }
@@ -166,7 +168,7 @@ app.get('/api/compare/:id', (req, res) => {
   const dataA = loadData(req.params.id, 'A');
   const dataB = loadData(req.params.id, 'B');
   const dataC = loadData(req.params.id, 'C');
-  const dataAForAC = bridgeDataForAC(dataA);
+  const dataAForAC = bridgeADataForAC(dataA);
   res.json({
     session,
     downloads: {
