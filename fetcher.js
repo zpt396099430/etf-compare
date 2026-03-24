@@ -30,8 +30,19 @@ function httpsPost(hostname, path, headers, body) {
 }
 
 const BASE = 'e.gtfund.com';
+const MOBILE_BASE = 'm.gtfund.com';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 const REFERER = 'https://e.gtfund.com/Etrade/Jijin/view/id/';
+
+function isSZSECode(fundCode) {
+  return /^1\d{5}$/.test(String(fundCode));
+}
+
+function getAPICandidateCodes(fundCode) {
+  const code = String(fundCode).padStart(6, '0');
+  const plus1 = String(parseInt(code, 10) + 1).padStart(6, '0');
+  return isSZSECode(code) ? [code, plus1] : [plus1, code];
+}
 
 async function getCookie(fundCode) {
   console.log(`[Cookie] 开始获取基金 ${fundCode} 的 Cookie...`);
@@ -58,58 +69,78 @@ async function getCookie(fundCode) {
   return finalCookie;
 }
 
-// 尝试获取 XML，返回 null 表示失败
-async function tryDownloadXML(fundCode, listCode, date, cookie) {
+async function tryDownloadXMLNew(fundCode, date) {
+  const url = `/cochin/etf/download/${fundCode}/${date}`;
+  console.log(`[DownloadXML] 尝试新下载地址: ${MOBILE_BASE}${url}`);
+
+  const r = await httpsGet(MOBILE_BASE, url, { 'User-Agent': UA, 'Referer': REFERER + fundCode });
+  console.log(`[DownloadXML] 新地址 HTTP状态: ${r.status}, 大小: ${r.body.length} 字节`);
+
+  if (r.status !== 200) return null;
+
+  const content = r.body.toString('utf8');
+  console.log(`[DownloadXML] 新地址返回前100字符: ${content.substring(0, 100)}`);
+
+  if (!content.includes('<?xml') && !content.includes('PortfolioCompositionFile') && !content.includes('<PCFFile')) {
+    console.log(`[DownloadXML] 新地址内容不是有效 XML，跳过`);
+    return null;
+  }
+
+  return content;
+}
+
+// 旧下载接口保留做兜底
+async function tryDownloadXMLOld(fundCode, listCode, date, cookie) {
   const url = `/Etrade/FundDetail/getETFFile/id/${listCode}/date/${date}`;
-  console.log(`[DownloadXML] 尝试列表代码: ${listCode}`);
-  
+  console.log(`[DownloadXML] 兜底旧地址尝试列表代码: ${listCode}`);
+
   const r = await httpsGet(BASE, url, {
     'User-Agent': UA,
     'Referer': REFERER + fundCode,
     'Cookie': cookie
   });
-  console.log(`[DownloadXML] HTTP状态: ${r.status}, 大小: ${r.body.length} 字节`);
-  
+  console.log(`[DownloadXML] 旧地址 HTTP状态: ${r.status}, 大小: ${r.body.length} 字节`);
+
   if (r.status !== 200) return null;
-  
+
   const content = r.body.toString('utf8');
-  console.log(`[DownloadXML] 返回内容前100字符: ${content.substring(0, 100)}`);
-  
-  // 验证是否为有效 XML（至少包含 <?xml 或 <SSEPortfolioCompositionFile）
-  if (!content.includes('<?xml') && !content.includes('<SSEPortfolioCompositionFile')) {
-    console.log(`[DownloadXML] 内容不是有效的 XML，跳过`);
+  console.log(`[DownloadXML] 旧地址返回前100字符: ${content.substring(0, 100)}`);
+
+  if (!content.includes('<?xml') && !content.includes('PortfolioCompositionFile') && !content.includes('<PCFFile')) {
+    console.log(`[DownloadXML] 旧地址内容不是有效 XML，跳过`);
     return null;
   }
-  
+
   return content;
 }
 
 async function downloadXML(fundCode, date, cookie) {
-  // 策略：先尝试 fundCode + 1，失败再试原始 fundCode
-  const listCodePlus1 = String(parseInt(fundCode) + 1).padStart(6, '0');
-  const listCodeOriginal = fundCode;
-  
-  console.log(`[DownloadXML] 基金: ${fundCode}, 日期: ${date}, 尝试: ${listCodePlus1} → ${listCodeOriginal}`);
-  
-  // 第一次尝试：fundCode + 1
-  let result = await tryDownloadXML(fundCode, listCodePlus1, date, cookie);
+  console.log(`[DownloadXML] 基金: ${fundCode}, 日期: ${date}`);
+
+  const direct = await tryDownloadXMLNew(fundCode, date);
+  if (direct) {
+    console.log(`[DownloadXML] ✓ 使用新下载地址成功`);
+    return direct;
+  }
+
+  const listCodePlus1 = String(parseInt(fundCode, 10) + 1).padStart(6, '0');
+  const listCodeOriginal = String(fundCode).padStart(6, '0');
+
+  let result = await tryDownloadXMLOld(fundCode, listCodePlus1, date, cookie);
   if (result) {
-    console.log(`[DownloadXML] ✓ 使用 +1 代码(${listCodePlus1})成功`);
+    console.log(`[DownloadXML] ✓ 使用旧地址 +1 代码(${listCodePlus1})成功`);
     return result;
   }
-  
-  // 第二次尝试：原始 fundCode
-  console.log(`[DownloadXML] +1失败，尝试原始代码...`);
-  result = await tryDownloadXML(fundCode, listCodeOriginal, date, cookie);
+
+  result = await tryDownloadXMLOld(fundCode, listCodeOriginal, date, cookie);
   if (result) {
-    console.log(`[DownloadXML] ✓ 使用原始代码(${listCodeOriginal})成功`);
+    console.log(`[DownloadXML] ✓ 使用旧地址原始代码(${listCodeOriginal})成功`);
     return result;
   }
-  
-  throw new Error(`无法获取基金 ${fundCode} 的PCF文件，代码 ${listCodePlus1} 和 ${listCodeOriginal} 均失败`);
+
+  throw new Error(`无法获取基金 ${fundCode} 的PCF文件，新旧下载地址均失败`);
 }
 
-// 尝试调用 API，返回 null 表示失败
 async function tryFetchAPI(fundCode, listCode, dateFormatted, cookie) {
   const body = JSON.stringify({ api: 'info.etf', params: { code: listCode, date: dateFormatted } });
   console.log(`[API] 尝试列表代码: ${listCode}`);
@@ -122,7 +153,7 @@ async function tryFetchAPI(fundCode, listCode, dateFormatted, cookie) {
     'X-Requested-With': 'XMLHttpRequest',
     'Cookie': cookie
   }, body);
-  
+
   console.log(`[API] HTTP状态: ${r.status}, 响应: ${r.body.substring(0, 150)}`);
 
   try {
@@ -140,27 +171,19 @@ async function tryFetchAPI(fundCode, listCode, dateFormatted, cookie) {
 
 async function fetchAPIData(fundCode, date, cookie) {
   const dateFormatted = `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`;
-  const listCodePlus1 = String(parseInt(fundCode) + 1).padStart(6, '0');
-  const listCodeOriginal = fundCode;
-  
-  console.log(`[API] 基金: ${fundCode}, 日期: ${dateFormatted}, 尝试: ${listCodePlus1} → ${listCodeOriginal}`);
+  const candidates = getAPICandidateCodes(fundCode);
 
-  // 第一次尝试：fundCode + 1
-  let result = await tryFetchAPI(fundCode, listCodePlus1, dateFormatted, cookie);
-  if (result) {
-    console.log(`[API] ✓ 使用 +1 代码(${listCodePlus1})成功`);
-    return result;
+  console.log(`[API] 基金: ${fundCode}, 日期: ${dateFormatted}, 尝试顺序: ${candidates.join(' → ')}`);
+
+  for (const code of candidates) {
+    const result = await tryFetchAPI(fundCode, code, dateFormatted, cookie);
+    if (result) {
+      console.log(`[API] ✓ 使用代码(${code})成功`);
+      return result;
+    }
   }
-  
-  // 第二次尝试：原始 fundCode
-  console.log(`[API] +1失败，尝试原始代码...`);
-  result = await tryFetchAPI(fundCode, listCodeOriginal, dateFormatted, cookie);
-  if (result) {
-    console.log(`[API] ✓ 使用原始代码(${listCodeOriginal})成功`);
-    return result;
-  }
-  
-  throw new Error(`无法获取基金 ${fundCode} 的API数据，代码 ${listCodePlus1} 和 ${listCodeOriginal} 均失败`);
+
+  throw new Error(`无法获取基金 ${fundCode} 的API数据，尝试代码 ${candidates.join(' / ')} 均失败`);
 }
 
 module.exports = { getCookie, downloadXML, fetchAPIData };
