@@ -100,7 +100,8 @@ function pickHeader(root, field) {
   return firstDefined(root, aliases[field] || [field]);
 }
 
-function pickSecurityValue(item, field) {
+function pickSecurityValue(item, field, options = {}) {
+  const { preserveUnderlyingSecurityId = true } = options;
   const aliases = {
     InstrumentID: ['InstrumentID', 'SecurityID', 'securityID', 'Code', 'code', 'UnderlyingSecurityID'],
     InstrumentName: ['InstrumentName', 'SecurityName', 'securityName', 'Name', 'name', 'UnderlyingSymbol'],
@@ -112,8 +113,7 @@ function pickSecurityValue(item, field) {
     SubstitutionCashAmount: ['SubstitutionCashAmount', 'CashAmount', 'CreationCashSubstitute'],
     CreationCashSubstitute: ['CreationCashSubstitute', 'SubstitutionCashAmount', 'CashAmount'],
     RedemptionCashSubstitute: ['RedemptionCashSubstitute'],
-    UnderlyingSecurityID: ['MarketID', 'ExchangeID', 'UnderlyingSecurityID'],
-    SecurityIDSource: ['SecurityIDSource', 'UnderlyingSecurityIDSource']
+    UnderlyingSecurityID: preserveUnderlyingSecurityId ? ['MarketID', 'ExchangeID', 'UnderlyingSecurityID'] : ['MarketID', 'ExchangeID']
   };
   return firstDefined(item, aliases[field] || [field]);
 }
@@ -158,6 +158,7 @@ function parseXML(xmlContent) {
 
   const doc = parser.parse(cleaned);
   const root = pickRoot(doc);
+  const isSZSEPcf = !!doc.PCFFile || root === doc.PCFFile;
 
   const headers = {};
   for (const f of HEADER_FIELDS) {
@@ -172,7 +173,7 @@ function parseXML(xmlContent) {
   const securities = {};
   const items = getComponentItems(root);
   for (const item of items) {
-    const rawId = pickSecurityValue(item, 'InstrumentID');
+    const rawId = pickSecurityValue(item, 'InstrumentID', { preserveUnderlyingSecurityId: !isSZSEPcf });
     if (rawId === undefined || rawId === null || rawId === '') continue;
 
     const id = String(rawId).trim();
@@ -180,7 +181,7 @@ function parseXML(xmlContent) {
 
     securities[id] = {};
     for (const f of SECURITY_FIELDS) {
-      const value = pickSecurityValue(item, f);
+      const value = pickSecurityValue(item, f, { preserveUnderlyingSecurityId: !isSZSEPcf });
       if (value !== undefined && value !== null && value !== '') securities[id][f] = String(value);
     }
     normalizeSecurityFields(securities[id], { forApi: false });
