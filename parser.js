@@ -134,18 +134,20 @@ function normalizeHeaderValues(headers) {
   delete headers.__Redemption;
 }
 
-function normalizeSecurityFields(sec) {
-  if (sec.CreationCashSubstitute === undefined && sec.SubstitutionCashAmount !== undefined) {
-    sec.CreationCashSubstitute = sec.SubstitutionCashAmount;
-  }
-  if (sec.SubstitutionCashAmount === undefined && sec.CreationCashSubstitute !== undefined) {
-    sec.SubstitutionCashAmount = sec.CreationCashSubstitute;
-  }
-  if (sec.RedemptionDiscountRate === undefined && sec.CreationPremiumRate !== undefined) {
-    sec.RedemptionDiscountRate = sec.CreationPremiumRate;
-  }
-  if (sec.RedemptionCashSubstitute === undefined && sec.SubstitutionCashAmount !== undefined) {
-    sec.RedemptionCashSubstitute = sec.SubstitutionCashAmount;
+function normalizeSecurityFields(sec, { forApi = false } = {}) {
+  if (forApi) {
+    if (sec.CreationCashSubstitute === undefined && sec.SubstitutionCashAmount !== undefined) {
+      sec.CreationCashSubstitute = sec.SubstitutionCashAmount;
+    }
+    if (sec.SubstitutionCashAmount === undefined && sec.CreationCashSubstitute !== undefined) {
+      sec.SubstitutionCashAmount = sec.CreationCashSubstitute;
+    }
+    if (sec.RedemptionDiscountRate === undefined && sec.CreationPremiumRate !== undefined) {
+      sec.RedemptionDiscountRate = sec.CreationPremiumRate;
+    }
+    if (sec.RedemptionCashSubstitute === undefined && sec.SubstitutionCashAmount !== undefined) {
+      sec.RedemptionCashSubstitute = sec.SubstitutionCashAmount;
+    }
   }
 }
 
@@ -180,7 +182,7 @@ function parseXML(xmlContent) {
       const value = pickSecurityValue(item, f);
       if (value !== undefined && value !== null && value !== '') securities[id][f] = String(value);
     }
-    normalizeSecurityFields(securities[id]);
+    normalizeSecurityFields(securities[id], { forApi: false });
   }
 
   return {
@@ -278,7 +280,7 @@ function parseAPIData(apiData) {
         const xmlField = colMap[col] || col;
         securities[id][xmlField] = String(row[i] ?? '');
       });
-      normalizeSecurityFields(securities[id]);
+      normalizeSecurityFields(securities[id], { forApi: true });
     }
   }
 
